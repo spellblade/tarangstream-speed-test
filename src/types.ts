@@ -1,4 +1,4 @@
-export type TestPhase = 'idle' | 'latency' | 'download' | 'upload' | 'complete';
+export type TestPhase = "idle" | "latency" | "download" | "upload" | "complete";
 
 export interface SpeedData {
   download: number; // in Mbps
