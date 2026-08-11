@@ -1,0 +1,5 @@
+{
+  "name": "Remix: Internet Speed Test",
+  "description": "An interactive, double-speedometer internet speed utility with custom latency, jitter calculations, ISP lookup, and high-fidelity stability tracking over time.",
+  "requestFramePermissions": []
+}
