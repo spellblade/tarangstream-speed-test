@@ -42,10 +42,13 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for the full workflow.
 
 ## Documentation
 
-- [Changelog](CHANGELOG.md)
-- [Contributing](CONTRIBUTING.md)
-- [Security policy](SECURITY.md)
-- [License (MIT)](LICENSE)
+- [Docs home](docs/index.md)
+- [Setup](docs/setup.md)
+- [Architecture](docs/architecture.md)
+- [Usage](docs/usage.md)
+- [Coding standards](docs/coding-standards.md)
+- [Measurement methodology](docs/measurement-methodology.md)
+- [Changelog](CHANGELOG.md) · [Contributing](CONTRIBUTING.md) · [Security](SECURITY.md) · [License (MIT)](LICENSE)
 
 ---
 

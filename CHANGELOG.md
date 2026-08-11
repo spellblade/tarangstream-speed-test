@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Project documentation under `docs/` (setup, architecture, usage, coding standards, measurement methodology)
+
 ### Changed
 
 ### Fixed
