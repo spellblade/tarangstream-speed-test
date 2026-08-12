@@ -26,6 +26,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Unit tests with Vitest for measurement helpers, gauge mapping, and localhost overrides; CI runs `npm test`
 - Optional Semgrep GitHub Actions workflow (skips cleanly when secrets are missing)
 - Unit-tested helpers: API rate limit / client IP (`rateLimit`), history localStorage sanitize, custom-server URL validation
+- CSV export helpers (`escapeCsvValue` / `buildHistoryCsv`) with unit tests
+- Custom-server list sanitization on localStorage load
+- Express API smoke tests via `createApiApp` + supertest (health, upload, download, rate limit)
 
 ### Changed
 
@@ -33,6 +36,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Security contact email set to `sohamray24@outlook.com`
 - Server rate limiting uses shared `createRateLimiter` / `getClientIp` helpers
 - History load and custom server URLs go through sanitize / `validatePingHostUrl`
+- API routes extracted to `createApiApp` for testable Express surface
 
 ### Fixed
 

@@ -31,6 +31,8 @@ import {
 } from "./utils/speedTest";
 import { sanitizeHistoryEntries } from "./utils/historySanitize";
 import { validatePingHostUrl } from "./utils/urlValidation";
+import { sanitizeCustomServers } from "./utils/customServers";
+import { buildHistoryCsv } from "./utils/csv";
 import Gauge from "./components/Gauge";
 import StatsCard from "./components/StatsCard";
 
@@ -334,7 +336,12 @@ export default function App() {
     const cachedCustom = localStorage.getItem("custom_speedtest_servers");
     if (cachedCustom) {
       try {
-        setCustomServers(JSON.parse(cachedCustom));
+        const sanitized = sanitizeCustomServers(JSON.parse(cachedCustom));
+        setCustomServers(sanitized);
+        localStorage.setItem(
+          "custom_speedtest_servers",
+          JSON.stringify(sanitized),
+        );
       } catch (e) {
         console.error("Failed to parse custom servers", e);
       }
@@ -489,45 +496,7 @@ export default function App() {
   const handleExportCSV = () => {
     if (history.length === 0) return;
 
-    const headers = [
-      "ID",
-      "Timestamp (UTC)",
-      "Timestamp (Local)",
-      "Download Speed (Mbps)",
-      "Upload Speed (Mbps)",
-      "Latency / Ping (ms)",
-      "Jitter (ms)",
-      "ISP",
-      "Server",
-    ];
-
-    const rows = history.map((entry) => {
-      const escape = (val: any) => {
-        const str = String(val ?? "");
-        if (str.includes(",") || str.includes('"') || str.includes("\n")) {
-          return `"${str.replace(/"/g, '""')}"`;
-        }
-        return str;
-      };
-
-      const localTime = new Date(entry.timestamp).toLocaleString();
-
-      return [
-        entry.id,
-        entry.timestamp,
-        localTime,
-        entry.download,
-        entry.upload,
-        entry.ping,
-        entry.jitter,
-        entry.isp,
-        entry.server,
-      ]
-        .map(escape)
-        .join(",");
-    });
-
-    const csvContent = [headers.join(","), ...rows].join("\n");
+    const csvContent = buildHistoryCsv(history);
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
