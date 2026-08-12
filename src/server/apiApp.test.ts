@@ -1,3 +1,5 @@
+import http from "node:http";
+import type { AddressInfo } from "node:net";
 import { afterEach, describe, expect, it } from "vitest";
 import request from "supertest";
 import { createApiApp } from "./apiApp";
@@ -5,15 +7,60 @@ import { createRateLimiter } from "../utils/rateLimit";
 
 describe("createApiApp routes", () => {
   const apps: ReturnType<typeof createApiApp>[] = [];
+  const servers: http.Server[] = [];
 
-  afterEach(() => {
+  afterEach(async () => {
     apps.length = 0;
+    await Promise.all(
+      servers.splice(0).map(
+        (s) =>
+          new Promise<void>((resolve, reject) => {
+            s.close((err) => (err ? reject(err) : resolve()));
+          }),
+      ),
+    );
   });
 
   function app(opts?: Parameters<typeof createApiApp>[0]) {
     const instance = createApiApp(opts);
     apps.push(instance);
     return instance;
+  }
+
+  function listen(instance: ReturnType<typeof createApiApp>): Promise<{
+    port: number;
+    server: http.Server;
+  }> {
+    return new Promise((resolve, reject) => {
+      const server = http.createServer(instance);
+      servers.push(server);
+      server.listen(0, "127.0.0.1", () => {
+        const addr = server.address() as AddressInfo;
+        resolve({ port: addr.port, server });
+      });
+      server.on("error", reject);
+    });
+  }
+
+  /** Open a download stream and pause it so the connection stays counted. */
+  function holdDownload(
+    port: number,
+  ): Promise<{ req: http.ClientRequest; res: http.IncomingMessage }> {
+    return new Promise((resolve, reject) => {
+      const req = http.get(
+        `http://127.0.0.1:${port}/api/download`,
+        (res) => {
+          if (res.statusCode !== 200) {
+            res.resume();
+            reject(new Error(`expected 200, got ${res.statusCode}`));
+            return;
+          }
+          res.pause();
+          resolve({ req, res });
+        },
+      );
+      req.on("error", reject);
+    });
   }
 
   it("GET /api/health returns ok and security headers", async () => {
@@ -89,5 +136,44 @@ describe("createApiApp routes", () => {
       .send(Buffer.from([4]))
       .expect(429);
     expect(blocked.body.error).toMatch(/too many requests/i);
+  });
+
+  it("returns 429 when concurrent download streams exceed the per-IP cap", async () => {
+    const instance = app({
+      maxDownloadConnections: 2,
+      downloadStreamMaxMs: 10_000,
+      // Room for concurrent opens without hitting request-rate limits
+      rateLimiter: createRateLimiter(50, 60_000),
+    });
+    const { port } = await listen(instance);
+
+    const held1 = await holdDownload(port);
+    const held2 = await holdDownload(port);
+
+    const third = await new Promise<{
+      status: number;
+      body: string;
+    }>((resolve, reject) => {
+      http
+        .get(`http://127.0.0.1:${port}/api/download`, (res) => {
+          const chunks: Buffer[] = [];
+          res.on("data", (c) => chunks.push(Buffer.from(c)));
+          res.on("end", () =>
+            resolve({
+              status: res.statusCode ?? 0,
+              body: Buffer.concat(chunks).toString("utf8"),
+            }),
+          );
+        })
+        .on("error", reject);
+    });
+
+    expect(third.status).toBe(429);
+    expect(third.body).toMatch(/concurrent download streams/i);
+
+    held1.req.destroy();
+    held2.req.destroy();
+    held1.res.destroy();
+    held2.res.destroy();
   });
 });

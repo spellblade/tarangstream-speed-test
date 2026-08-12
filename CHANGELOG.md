@@ -29,6 +29,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - CSV export helpers (`escapeCsvValue` / `buildHistoryCsv`) with unit tests
 - Custom-server list sanitization on localStorage load
 - Express API smoke tests via `createApiApp` + supertest (health, upload, download, rate limit)
+- Concurrent download per-IP cap test (429 when streams exceed limit)
 
 ### Changed
 
@@ -41,6 +42,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Transitive dependency security patches via `npm audit fix`: `body-parser` ≥1.20.6, `nanoid` ≥3.3.17, `postcss` ≥8.5.23
+- Revoke blob URL after CSV history export (`URL.revokeObjectURL`)
 
 ## [0.1.0] - 2026-08-11
 

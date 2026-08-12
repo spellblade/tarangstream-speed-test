@@ -508,6 +508,7 @@ export default function App() {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   };
 
   const getServerDistance = (srv: ServerOption) => {
