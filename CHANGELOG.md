@@ -10,11 +10,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Project documentation under `docs/` (setup, architecture, usage, coding standards, measurement methodology)
-- Unit tests with Vitest for measurement helpers, gauge mapping, and localhost overrides; CI runs `npm test`
+- Project metadata and contributor scaffolding: `VERSION`, MIT `LICENSE`, `CONTRIBUTING.md`, `SECURITY.md`, `.editorconfig`
+- GitHub templates: issue templates, pull request template
+- Dependabot config (`.github/dependabot.yml`)
+- README project structure, badges, branch model, and quick start
 
 ### Changed
 
 ### Fixed
+
+## [0.1.1] - 2026-08-12
+
+### Added
+
+- Unit tests with Vitest for measurement helpers, gauge mapping, and localhost overrides; CI runs `npm test`
+- Optional Semgrep GitHub Actions workflow (skips cleanly when secrets are missing)
+
+### Changed
+
+- CI push triggers limited to `master`, `develop`, and `staging` (no `feature/*`)
+- Security contact email set to `sohamray24@outlook.com`
+
+### Fixed
+
+- Transitive dependency security patches via `npm audit fix`: `body-parser` ≥1.20.6, `nanoid` ≥3.3.17, `postcss` ≥8.5.23
 
 ## [0.1.0] - 2026-08-11
 
@@ -29,16 +48,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Express `/api/download` and `/api/upload` endpoints with size and content-type guards
 - Dark / light theme with instant theme toggle
 - Stability chart and About page (lazy-loaded)
-- Optional Semgrep GitHub Actions workflows (skip cleanly when secrets are not configured)
 
-### Changed
-
-- CI runs on push to `feature/*` as well as master/develop/staging; PR targets unchanged
-- Harden Semgrep workflow: skip when secrets are missing; Sonar scopes sources/tests and excludes `dist`, assets, and unit tests from main code
-
-### Fixed
-
-- Transitive dependency security patches via `npm audit fix`: `body-parser` ≥1.20.6, `nanoid` ≥3.3.17, `postcss` ≥8.5.23
-
-[Unreleased]: https://github.com/spellblade/tarangstream-speed-test/compare/v0.1.0...HEAD
-[0.1.0]: https://github.com/spellblade/tarangstream-speed-test/releases/tag/v0.1.0
+[Unreleased]: https://github.com/spellblade/tarangstream-speed-test/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/spellblade/tarangstream-speed-test/releases/tag/v0.1.1
+[0.1.0]: https://github.com/spellblade/tarangstream-speed-test/compare/v0.1.0...v0.1.1

@@ -1,7 +1,7 @@
 {
   "name": "tarangstream-speed-test",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Browser-based network speed and stability diagnostics (download, upload, latency, jitter)",
   "type": "module",
   "scripts": {

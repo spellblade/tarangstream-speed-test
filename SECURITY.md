@@ -13,8 +13,7 @@ Please **do not** open a public GitHub issue for security problems.
 Prefer one of the following:
 
 1. **GitHub private vulnerability reporting** for this repository (Security → Report a vulnerability), if enabled
-2. Email: `security@example.com`  
-   <!-- TODO: replace with a real security contact address -->
+2. Email: `sohamray24@outlook.com`
 
 Include as much detail as you can:
 
