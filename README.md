@@ -26,6 +26,7 @@ npm start
 | Command | Purpose |
 |---------|---------|
 | `npm run lint` | TypeScript check (`tsc --noEmit`) |
+| `npm test` | Unit tests (Vitest; also run in CI) |
 | `npm run build` | Vite client + bundled Express server |
 | `npm start` | Serve production build |
 

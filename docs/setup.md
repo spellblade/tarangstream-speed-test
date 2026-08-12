@@ -30,6 +30,8 @@ Useful scripts:
 | Command | Purpose |
 |---------|---------|
 | `npm run lint` | TypeScript check (`tsc --noEmit`) |
+| `npm test` | Unit tests via Vitest (single run; also run in CI) |
+| `npm run test:watch` | Vitest watch mode |
 | `npm run build` | Vite client build + esbuild server bundle |
 | `npm start` | Run production server (`node dist/server.cjs`) |
 | `npm run clean` | Remove build artifacts (see `package.json`) |

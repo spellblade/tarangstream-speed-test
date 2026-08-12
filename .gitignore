@@ -6,6 +6,5 @@ coverage/
 *.log
 .env*
 !.env.example
-tarangstream-code-review.md
 agent-tools/
 .aistudio/

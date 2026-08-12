@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Project documentation under `docs/` (setup, architecture, usage, coding standards, measurement methodology)
+- Unit tests with Vitest for measurement helpers, gauge mapping, and localhost overrides; CI runs `npm test`
 
 ### Changed
 
