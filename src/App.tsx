@@ -680,10 +680,6 @@ export default function App() {
 
       if (isInterruptedRef.current || signal.aborted) return;
 
-      // Use the outer isLocal (computed at component top) + dedicated local module when active.
-      // All the special localhost behavior is implemented inside speedTest.local.ts
-      const speed = isLocal ? localSpeed : prodSpeed;
-
       // 2. Calculate geographic distance factor
       let distanceFactor = 1.0;
       let computedDistance = 0;
@@ -804,48 +800,56 @@ export default function App() {
       try {
         if (isInterruptedRef.current || signal.aborted) return;
         // Run high-fidelity real network download test
-        // On localhost we delegate to the version in speedTest.local.ts (public CDN)
-        const finalRealDownload = await speed.runRealDownloadTest(
-          6000, // 6 seconds real test duration
-          (
-            liveEMAVal,
-            liveWMAVal,
-            progress,
-            activeStreams,
-            estimatedPacketLoss,
-          ) => {
-            if (isInterruptedRef.current || signal.aborted) return;
-            // Map 0-100% test progress to 15-55% overall progress
-            const overallProg = 15 + Math.round((progress / 100) * 40);
-            setOverallProgress(overallProg);
+        // On localhost we delegate to speedTest.local.ts (public CDN / ServerOption)
+        const onDownloadProgress = (
+          liveEMAVal: number,
+          liveWMAVal: number,
+          progress: number,
+          activeStreams: number,
+          estimatedPacketLoss: number,
+        ) => {
+          if (isInterruptedRef.current || signal.aborted) return;
+          // Map 0-100% test progress to 15-55% overall progress
+          const overallProg = 15 + Math.round((progress / 100) * 40);
+          setOverallProgress(overallProg);
 
-            setLiveEMA(liveEMAVal);
-            setLiveWMA(liveWMAVal);
-            setLivePacketLoss(estimatedPacketLoss);
-            setLiveStreams(activeStreams);
+          setLiveEMA(liveEMAVal);
+          setLiveWMA(liveWMAVal);
+          setLivePacketLoss(estimatedPacketLoss);
+          setLiveStreams(activeStreams);
 
-            const prefSpeed =
-              smoothingMethod === "EMA"
-                ? liveEMAVal
-                : smoothingMethod === "WMA"
-                  ? liveWMAVal
-                  : parseFloat(((liveEMAVal + liveWMAVal) / 2).toFixed(2));
+          const prefSpeed =
+            smoothingMethod === "EMA"
+              ? liveEMAVal
+              : smoothingMethod === "WMA"
+                ? liveWMAVal
+                : parseFloat(((liveEMAVal + liveWMAVal) / 2).toFixed(2));
 
-            setSpeeds((prev) => ({
-              ...prev,
-              download: prefSpeed,
-              packetLoss: estimatedPacketLoss,
-              maxStreams: Math.max(prev.maxStreams || 1, activeStreams),
-            }));
-            setPeakSpeeds((prev) => ({
-              ...prev,
-              download: Math.max(prev.download, prefSpeed),
-            }));
-            setLivePps(activeStreams);
-          },
-          signal,
-          isLocal ? targetServer : undefined, // only the local runner uses the server to pick a regional mirror
-        );
+          setSpeeds((prev) => ({
+            ...prev,
+            download: prefSpeed,
+            packetLoss: estimatedPacketLoss,
+            maxStreams: Math.max(prev.maxStreams || 1, activeStreams),
+          }));
+          setPeakSpeeds((prev) => ({
+            ...prev,
+            download: Math.max(prev.download, prefSpeed),
+          }));
+          setLivePps(activeStreams);
+        };
+
+        const finalRealDownload = isLocal
+          ? await localSpeed.runRealDownloadTest(
+              6000,
+              onDownloadProgress,
+              signal,
+              targetServer,
+            )
+          : await prodSpeed.runRealDownloadTest(
+              6000,
+              onDownloadProgress,
+              signal,
+            );
 
         if (isInterruptedRef.current || signal.aborted) return;
 

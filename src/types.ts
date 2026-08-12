@@ -19,6 +19,7 @@ export interface IspInfo {
   lon: number;
   asn?: string;
   countryCode?: string;
+  isFallback?: boolean;
 }
 
 export interface HistoryEntry {

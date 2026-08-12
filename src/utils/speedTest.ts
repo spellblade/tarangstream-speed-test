@@ -371,6 +371,7 @@ export async function fetchIspDetails(): Promise<IspInfo> {
             lon: lon,
             asn: "AS7922",
             countryCode: countryCode,
+            isFallback: true,
           };
         }
       }
