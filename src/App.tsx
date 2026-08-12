@@ -15,13 +15,8 @@ import {
   HistoryEntry,
   ServerOption,
 } from "./types";
-
-// Prod (real /api) implementation
 import * as prodSpeed from "./utils/speedTest";
-// Dedicated localhost / testing overrides (ALL localhost-specific code lives here)
 import * as localSpeed from "./utils/speedTest.local";
-
-// Shared non-runner utilities (always safe to pull from prod)
 import {
   measurePing,
   fetchIspDetails,
@@ -38,11 +33,18 @@ import {
   applyDialColdStart,
   mapPhaseProgress,
 } from "./utils/progressMap";
+import {
+  blendPacketLoss,
+  pickPreferredSpeed,
+  type SmoothingMethod,
+} from "./utils/smoothing";
+import {
+  BASE_HISTORY,
+  DEFAULT_SERVER_OPTIONS,
+  POPULAR_CITIES,
+} from "./data/appDefaults";
 import Gauge from "./components/Gauge";
 import StatsCard from "./components/StatsCard";
-
-const StabilityChart = lazy(() => import("./components/StabilityChart"));
-const AboutPage = lazy(() => import("./components/AboutPage"));
 import {
   Activity,
   History,
@@ -73,143 +75,8 @@ import {
   Download,
 } from "lucide-react";
 
-// Seeding realistic historical logs so the stability graph starts with rich data,
-// while letting the application persist all subsequent test cycles.
-const BASE_HISTORY: HistoryEntry[] = [
-  {
-    id: "seed-1",
-    timestamp: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
-    download: 342.5,
-    upload: 182.1,
-    ping: 18,
-    jitter: 3,
-    isp: "Gigabit Fiber Corp",
-    server: "Optimal Automatic",
-  },
-  {
-    id: "seed-2",
-    timestamp: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-    download: 295.1,
-    upload: 154.2,
-    ping: 24,
-    jitter: 5,
-    isp: "Gigabit Fiber Corp",
-    server: "Optimal Automatic",
-  },
-  {
-    id: "seed-3",
-    timestamp: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
-    download: 388.9,
-    upload: 210.5,
-    ping: 16,
-    jitter: 2,
-    isp: "Gigabit Fiber Corp",
-    server: "Optimal Automatic",
-  },
-  {
-    id: "seed-4",
-    timestamp: new Date(Date.now() - 12 * 60 * 60 * 1000).toISOString(),
-    download: 412.0,
-    upload: 220.8,
-    ping: 15,
-    jitter: 2,
-    isp: "Gigabit Fiber Corp",
-    server: "Optimal Automatic",
-  },
-  {
-    id: "seed-5",
-    timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-    download: 165.4, // represent peak-hour congestion dip
-    upload: 82.0,
-    ping: 32,
-    jitter: 9,
-    isp: "Gigabit Fiber Corp",
-    server: "Optimal Automatic",
-  },
-];
-
-const DEFAULT_SERVER_OPTIONS: ServerOption[] = [
-  {
-    id: "optimal",
-    name: "Automatic Optimal Node",
-    location: "Lowest Latency Route",
-  },
-  {
-    id: "oregon",
-    name: "Cloud Provider (US-West)",
-    location: "Oregon, USA",
-    lat: 45.8283,
-    lon: -120.3184,
-  },
-  {
-    id: "virginia",
-    name: "Cloud Provider (US-East)",
-    location: "Virginia, USA",
-    lat: 37.4316,
-    lon: -78.6569,
-  },
-  {
-    id: "frankfurt",
-    name: "High-Speed CDN Node",
-    location: "Frankfurt, GER",
-    lat: 50.1109,
-    lon: 8.6821,
-  },
-  {
-    id: "london",
-    name: "Core Gateway (UK-West)",
-    location: "London, GBR",
-    lat: 51.5074,
-    lon: -0.1278,
-  },
-  {
-    id: "singapore",
-    name: "Pacific Transit Point",
-    location: "Singapore, SGP",
-    lat: 1.3521,
-    lon: 103.8198,
-  },
-  {
-    id: "tokyo",
-    name: "Asia Pacific Edge",
-    location: "Tokyo, JPN",
-    lat: 35.6762,
-    lon: 139.6503,
-  },
-  {
-    id: "sydney",
-    name: "Oceania Backbone",
-    location: "Sydney, AUS",
-    lat: -33.8688,
-    lon: 151.2093,
-  },
-  {
-    id: "saopaulo",
-    name: "South America Hub",
-    location: "São Paulo, BRA",
-    lat: -23.5505,
-    lon: -46.6333,
-  },
-  {
-    id: "mumbai",
-    name: "South Asia Core",
-    location: "Mumbai, IND",
-    lat: 19.076,
-    lon: 72.8777,
-  },
-];
-
-const POPULAR_CITIES = [
-  { name: "New York, USA", lat: 40.7128, lon: -74.006 },
-  { name: "Los Angeles, USA", lat: 34.0522, lon: -118.2437 },
-  { name: "London, UK", lat: 51.5074, lon: -0.1278 },
-  { name: "Paris, France", lat: 48.8566, lon: 2.3522 },
-  { name: "Tokyo, Japan", lat: 35.6762, lon: 139.6503 },
-  { name: "Sydney, Australia", lat: -33.8688, lon: 151.2093 },
-  { name: "Mumbai, India", lat: 19.076, lon: 72.8777 },
-  { name: "Singapore", lat: 1.3521, lon: 103.8198 },
-  { name: "Cape Town, S. Africa", lat: -33.9249, lon: 18.4241 },
-];
+const StabilityChart = lazy(() => import("./components/StabilityChart"));
+const AboutPage = lazy(() => import("./components/AboutPage"));
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<
@@ -304,9 +171,8 @@ export default function App() {
   const [liveWMA, setLiveWMA] = useState<number>(0);
   const [livePacketLoss, setLivePacketLoss] = useState<number>(0);
   const [liveStreams, setLiveStreams] = useState<number>(1);
-  const [smoothingMethod, setSmoothingMethod] = useState<
-    "EMA" | "WMA" | "Hybrid"
-  >("Hybrid");
+  const [smoothingMethod, setSmoothingMethod] =
+    useState<SmoothingMethod>("Hybrid");
 
   // Create speeds ref to avoid stale closure issues in timers/intervals
   const speedsRef = useRef(speeds);
@@ -821,12 +687,7 @@ export default function App() {
           setLivePacketLoss(estimatedPacketLoss);
           setLiveStreams(activeStreams);
 
-          const prefSpeed =
-            smoothingMethod === "EMA"
-              ? liveEMAVal
-              : smoothingMethod === "WMA"
-                ? liveWMAVal
-                : parseFloat(((liveEMAVal + liveWMAVal) / 2).toFixed(2));
+          const prefSpeed = pickPreferredSpeed(smoothingMethod, liveEMAVal, liveWMAVal);
 
           const dialSpeed = applyDialColdStart(
             downloadPhaseStartedAtRef.current,
@@ -861,17 +722,11 @@ export default function App() {
 
         if (isInterruptedRef.current || signal.aborted) return;
 
-        const finalPrefDownload =
-          smoothingMethod === "EMA"
-            ? finalRealDownload.emaSpeed
-            : smoothingMethod === "WMA"
-              ? finalRealDownload.wmaSpeed
-              : parseFloat(
-                  (
-                    (finalRealDownload.emaSpeed + finalRealDownload.wmaSpeed) /
-                    2
-                  ).toFixed(2),
-                );
+        const finalPrefDownload = pickPreferredSpeed(
+          smoothingMethod,
+          finalRealDownload.emaSpeed,
+          finalRealDownload.wmaSpeed,
+        );
 
         setSpeeds((prev) => ({
           ...prev,
@@ -911,7 +766,6 @@ export default function App() {
           signal.aborted ||
           err.name === "AbortError"
         ) {
-          console.log("[Download Test] Aborted by user action.");
           return;
         }
 
@@ -968,13 +822,7 @@ export default function App() {
           setLivePacketLoss(simLoss);
           setLiveStreams(simStreams);
 
-          const prefSpeed =
-            smoothingMethod === "EMA"
-              ? simEMA
-              : smoothingMethod === "WMA"
-                ? simWMA
-                : (simEMA + simWMA) / 2;
-          const finalPref = parseFloat(prefSpeed.toFixed(2));
+          const finalPref = pickPreferredSpeed(smoothingMethod, simEMA, simWMA);
           const dialSpeed = applyDialColdStart(
             downloadPhaseStartedAtRef.current,
             finalPref,
@@ -1014,7 +862,7 @@ export default function App() {
         isInterruptedRef.current ||
         signal.aborted
       ) {
-        console.log("[Speed Test] Routine aborted safely.");
+        // aborted by user
       } else {
         console.error("[Speed Test Error]", err);
         setTestPhase("idle");
@@ -1054,133 +902,72 @@ export default function App() {
 
     try {
       if (isInterruptedRef.current || signal.aborted) return;
-      // Run high-fidelity real network upload test
-      // On localhost we use the pure simulation exported from speedTest.local.ts (realistic numbers)
-      let finalRealUpload;
-      if (isLocal) {
-        finalRealUpload = await localSpeed.runLocalUploadTest(
-          6000,
-          (
-            liveEMAVal,
-            liveWMAVal,
-            progress,
-            activeStreams,
-            estimatedPacketLoss,
-          ) => {
-            if (isInterruptedRef.current || signal.aborted) return;
-            setOverallProgress(mapPhaseProgress("upload", progress / 100));
+      const onUploadProgress = (
+        liveEMAVal: number,
+        liveWMAVal: number,
+        progress: number,
+        activeStreams: number,
+        estimatedPacketLoss: number,
+      ) => {
+        if (isInterruptedRef.current || signal.aborted) return;
+        setOverallProgress(mapPhaseProgress("upload", progress / 100));
 
-            setLiveEMA(liveEMAVal);
-            setLiveWMA(liveWMAVal);
-            setLivePacketLoss(estimatedPacketLoss);
-            setLiveStreams(activeStreams);
+        setLiveEMA(liveEMAVal);
+        setLiveWMA(liveWMAVal);
+        setLivePacketLoss(estimatedPacketLoss);
+        setLiveStreams(activeStreams);
 
-            const prefSpeed =
-              smoothingMethod === "EMA"
-                ? liveEMAVal
-                : smoothingMethod === "WMA"
-                  ? liveWMAVal
-                  : parseFloat(((liveEMAVal + liveWMAVal) / 2).toFixed(2));
-
-            const dialSpeed = applyDialColdStart(
-              uploadPhaseStartedAtRef.current,
-              prefSpeed,
-            );
-
-            setSpeeds((prev) => ({
-              ...prev,
-              upload: dialSpeed,
-              packetLoss: parseFloat(
-                (
-                  (prev.packetLoss || 0) * 0.5 +
-                  estimatedPacketLoss * 0.5
-                ).toFixed(2),
-              ),
-              maxStreams: Math.max(prev.maxStreams || 1, activeStreams),
-            }));
-            setPeakSpeeds((prev) => ({
-              ...prev,
-              upload: Math.max(prev.upload, prefSpeed),
-            }));
-            setLivePps(activeStreams);
-          },
-          signal,
-          finalUploadTarget,
-          jitter,
+        const prefSpeed = pickPreferredSpeed(
+          smoothingMethod,
+          liveEMAVal,
+          liveWMAVal,
         );
-      } else {
-        finalRealUpload = await prodSpeed.runRealUploadTest(
-          6000,
-          (
-            liveEMAVal,
-            liveWMAVal,
-            progress,
-            activeStreams,
-            estimatedPacketLoss,
-          ) => {
-            if (isInterruptedRef.current || signal.aborted) return;
-            setOverallProgress(mapPhaseProgress("upload", progress / 100));
-
-            setLiveEMA(liveEMAVal);
-            setLiveWMA(liveWMAVal);
-            setLivePacketLoss(estimatedPacketLoss);
-            setLiveStreams(activeStreams);
-
-            const prefSpeed =
-              smoothingMethod === "EMA"
-                ? liveEMAVal
-                : smoothingMethod === "WMA"
-                  ? liveWMAVal
-                  : parseFloat(((liveEMAVal + liveWMAVal) / 2).toFixed(2));
-
-            const dialSpeed = applyDialColdStart(
-              uploadPhaseStartedAtRef.current,
-              prefSpeed,
-            );
-
-            setSpeeds((prev) => ({
-              ...prev,
-              upload: dialSpeed,
-              packetLoss: parseFloat(
-                (
-                  (prev.packetLoss || 0) * 0.5 +
-                  estimatedPacketLoss * 0.5
-                ).toFixed(2),
-              ),
-              maxStreams: Math.max(prev.maxStreams || 1, activeStreams),
-            }));
-            setPeakSpeeds((prev) => ({
-              ...prev,
-              upload: Math.max(prev.upload, prefSpeed),
-            }));
-            setLivePps(activeStreams);
-          },
-          signal,
+        const dialSpeed = applyDialColdStart(
+          uploadPhaseStartedAtRef.current,
+          prefSpeed,
         );
-      }
+
+        setSpeeds((prev) => ({
+          ...prev,
+          upload: dialSpeed,
+          packetLoss: blendPacketLoss(prev.packetLoss, estimatedPacketLoss),
+          maxStreams: Math.max(prev.maxStreams || 1, activeStreams),
+        }));
+        setPeakSpeeds((prev) => ({
+          ...prev,
+          upload: Math.max(prev.upload, prefSpeed),
+        }));
+        setLivePps(activeStreams);
+      };
+
+      const finalRealUpload = isLocal
+        ? await localSpeed.runLocalUploadTest(
+            6000,
+            onUploadProgress,
+            signal,
+            finalUploadTarget,
+            jitter,
+          )
+        : await prodSpeed.runRealUploadTest(
+            6000,
+            onUploadProgress,
+            signal,
+          );
 
       if (isInterruptedRef.current || signal.aborted) return;
 
-      const finalPrefUpload =
-        smoothingMethod === "EMA"
-          ? finalRealUpload.emaSpeed
-          : smoothingMethod === "WMA"
-            ? finalRealUpload.wmaSpeed
-            : parseFloat(
-                (
-                  (finalRealUpload.emaSpeed + finalRealUpload.wmaSpeed) /
-                  2
-                ).toFixed(2),
-              );
+      const finalPrefUpload = pickPreferredSpeed(
+        smoothingMethod,
+        finalRealUpload.emaSpeed,
+        finalRealUpload.wmaSpeed,
+      );
 
       setSpeeds((prev) => ({
         ...prev,
         upload: finalPrefUpload,
-        packetLoss: parseFloat(
-          (
-            (prev.packetLoss || 0) * 0.5 +
-            finalRealUpload.estimatedPacketLoss * 0.5
-          ).toFixed(2),
+        packetLoss: blendPacketLoss(
+          prev.packetLoss,
+          finalRealUpload.estimatedPacketLoss,
         ),
         maxStreams: Math.max(prev.maxStreams || 1, finalRealUpload.maxStreams),
       }));
@@ -1203,7 +990,6 @@ export default function App() {
         signal.aborted ||
         err.name === "AbortError"
       ) {
-        console.log("[Upload Test] Aborted by user action.");
         return;
       }
 
@@ -1256,13 +1042,7 @@ export default function App() {
         setLivePacketLoss(simLoss);
         setLiveStreams(simStreams);
 
-        const prefSpeed =
-          smoothingMethod === "EMA"
-            ? simEMA
-            : smoothingMethod === "WMA"
-              ? simWMA
-              : (simEMA + simWMA) / 2;
-        const finalPref = parseFloat(prefSpeed.toFixed(2));
+        const finalPref = pickPreferredSpeed(smoothingMethod, simEMA, simWMA);
         const dialSpeed = applyDialColdStart(
           uploadPhaseStartedAtRef.current,
           finalPref,
@@ -1271,9 +1051,7 @@ export default function App() {
         setSpeeds((prev) => ({
           ...prev,
           upload: dialSpeed,
-          packetLoss: parseFloat(
-            ((prev.packetLoss || 0) * 0.5 + simLoss * 0.5).toFixed(2),
-          ),
+          packetLoss: blendPacketLoss(prev.packetLoss, simLoss),
           maxStreams: Math.max(prev.maxStreams || 1, simStreams),
         }));
         setPeakSpeeds((prev) => ({

@@ -30,6 +30,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Test progress bar uses equal thirds: latency 0–33%, download 33–66%, upload 66–99% (complete 100%)
 - Phase label flips when download/upload actually start (not early on transition timers)
 - Download/upload dials hold near 0 for ~1s cold start while the progress bar continues
+- Refactor App speed-test path: shared `pickPreferredSpeed` helper, seed/server defaults moved out of `App.tsx`, deduped upload progress handlers
 
 ### Fixed
 
