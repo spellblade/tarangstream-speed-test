@@ -29,6 +29,10 @@ import {
   calculateDistance,
   calculateWMA,
 } from "./utils/speedTest";
+import { sanitizeHistoryEntries } from "./utils/historySanitize";
+import { validatePingHostUrl } from "./utils/urlValidation";
+import { sanitizeCustomServers } from "./utils/customServers";
+import { buildHistoryCsv } from "./utils/csv";
 import Gauge from "./components/Gauge";
 import StatsCard from "./components/StatsCard";
 
@@ -332,7 +336,12 @@ export default function App() {
     const cachedCustom = localStorage.getItem("custom_speedtest_servers");
     if (cachedCustom) {
       try {
-        setCustomServers(JSON.parse(cachedCustom));
+        const sanitized = sanitizeCustomServers(JSON.parse(cachedCustom));
+        setCustomServers(sanitized);
+        localStorage.setItem(
+          "custom_speedtest_servers",
+          JSON.stringify(sanitized),
+        );
       } catch (e) {
         console.error("Failed to parse custom servers", e);
       }
@@ -346,13 +355,24 @@ export default function App() {
     const latVal = parseFloat(customLat);
     const lonVal = parseFloat(customLon);
 
+    let validatedUrl: string | undefined;
+    const rawUrl = customUrl.trim();
+    if (rawUrl) {
+      const checked = validatePingHostUrl(rawUrl);
+      if (!checked.ok) {
+        // Reject private/loopback/non-http targets rather than storing a hostile URL
+        return;
+      }
+      validatedUrl = checked.url;
+    }
+
     const newSrv: ServerOption = {
       id: `custom-${Date.now()}`,
       name: customName.trim(),
       location: customCity.trim(),
       lat: isNaN(latVal) ? undefined : latVal,
       lon: isNaN(lonVal) ? undefined : lonVal,
-      url: customUrl.trim() || undefined,
+      url: validatedUrl,
       isCustom: true,
     };
 
@@ -476,45 +496,7 @@ export default function App() {
   const handleExportCSV = () => {
     if (history.length === 0) return;
 
-    const headers = [
-      "ID",
-      "Timestamp (UTC)",
-      "Timestamp (Local)",
-      "Download Speed (Mbps)",
-      "Upload Speed (Mbps)",
-      "Latency / Ping (ms)",
-      "Jitter (ms)",
-      "ISP",
-      "Server",
-    ];
-
-    const rows = history.map((entry) => {
-      const escape = (val: any) => {
-        const str = String(val ?? "");
-        if (str.includes(",") || str.includes('"') || str.includes("\n")) {
-          return `"${str.replace(/"/g, '""')}"`;
-        }
-        return str;
-      };
-
-      const localTime = new Date(entry.timestamp).toLocaleString();
-
-      return [
-        entry.id,
-        entry.timestamp,
-        localTime,
-        entry.download,
-        entry.upload,
-        entry.ping,
-        entry.jitter,
-        entry.isp,
-        entry.server,
-      ]
-        .map(escape)
-        .join(",");
-    });
-
-    const csvContent = [headers.join(","), ...rows].join("\n");
+    const csvContent = buildHistoryCsv(history);
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
@@ -526,6 +508,7 @@ export default function App() {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   };
 
   const getServerDistance = (srv: ServerOption) => {
@@ -581,25 +564,25 @@ export default function App() {
     };
     locate();
 
-    // Cache list
+    // Cache list (sanitize untrusted localStorage JSON)
     const cached = localStorage.getItem("network_speed_history");
     if (cached) {
       try {
-        const parsed = JSON.parse(cached) as HistoryEntry[];
-        const seenIds = new Set<string>();
-        const deduplicated = parsed.map((entry) => {
-          let id = entry.id;
-          if (!id || seenIds.has(id)) {
-            id = Math.random().toString(36).substring(2, 11);
-          }
-          seenIds.add(id);
-          return { ...entry, id };
-        });
-        setHistory(deduplicated);
-        localStorage.setItem(
-          "network_speed_history",
-          JSON.stringify(deduplicated),
-        );
+        const parsed = JSON.parse(cached);
+        const sanitized = sanitizeHistoryEntries(parsed);
+        if (sanitized.length === 0) {
+          setHistory(BASE_HISTORY);
+          localStorage.setItem(
+            "network_speed_history",
+            JSON.stringify(BASE_HISTORY),
+          );
+        } else {
+          setHistory(sanitized);
+          localStorage.setItem(
+            "network_speed_history",
+            JSON.stringify(sanitized),
+          );
+        }
       } catch {
         setHistory(BASE_HISTORY);
       }
