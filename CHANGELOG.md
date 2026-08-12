@@ -38,6 +38,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Revoke blob URL after CSV history export (`URL.revokeObjectURL`)
+- Tab / segmented-control highlight flicker: use color-only transitions and stable transparent borders so selection no longer appears to walk across intermediate options
 
 ## [0.1.1] - 2026-08-12
 
