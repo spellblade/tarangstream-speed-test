@@ -19,12 +19,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-## [0.1.1] - 2026-08-12
+## [0.1.2] - 2026-08-12
 
 ### Added
 
-- Unit tests with Vitest for measurement helpers, gauge mapping, and localhost overrides; CI runs `npm test`
-- Optional Semgrep GitHub Actions workflow (skips cleanly when secrets are missing)
 - Unit-tested helpers: API rate limit / client IP (`rateLimit`), history localStorage sanitize, custom-server URL validation
 - CSV export helpers (`escapeCsvValue` / `buildHistoryCsv`) with unit tests
 - Custom-server list sanitization on localStorage load
@@ -33,16 +31,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- CI push triggers limited to `master`, `develop`, and `staging` (no `feature/*`)
-- Security contact email set to `sohamray24@outlook.com`
 - Server rate limiting uses shared `createRateLimiter` / `getClientIp` helpers
 - History load and custom server URLs go through sanitize / `validatePingHostUrl`
-- API routes extracted to `createApiApp` for testable Express surface
+- API routes extracted to `createApiApp` for a testable Express surface
+
+### Fixed
+
+- Revoke blob URL after CSV history export (`URL.revokeObjectURL`)
+
+## [0.1.1] - 2026-08-12
+
+### Added
+
+- Unit tests with Vitest for measurement helpers, gauge mapping, and localhost overrides; CI runs `npm test`
+- Optional Semgrep GitHub Actions workflow (skips cleanly when secrets are missing)
+
+### Changed
+
+- CI push triggers limited to `master`, `develop`, and `staging` (no `feature/*`)
+- Security contact email set to `sohamray24@outlook.com`
 
 ### Fixed
 
 - Transitive dependency security patches via `npm audit fix`: `body-parser` ≥1.20.6, `nanoid` ≥3.3.17, `postcss` ≥8.5.23
-- Revoke blob URL after CSV history export (`URL.revokeObjectURL`)
 
 ## [0.1.0] - 2026-08-11
 
@@ -58,6 +69,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Dark / light theme with instant theme toggle
 - Stability chart and About page (lazy-loaded)
 
-[Unreleased]: https://github.com/spellblade/tarangstream-speed-test/compare/v0.1.1...HEAD
-[0.1.1]: https://github.com/spellblade/tarangstream-speed-test/releases/tag/v0.1.1
+[Unreleased]: https://github.com/spellblade/tarangstream-speed-test/compare/v0.1.2...HEAD
+[0.1.2]: https://github.com/spellblade/tarangstream-speed-test/releases/tag/v0.1.2
+[0.1.1]: https://github.com/spellblade/tarangstream-speed-test/compare/v0.1.1...v0.1.2
 [0.1.0]: https://github.com/spellblade/tarangstream-speed-test/compare/v0.1.0...v0.1.1
