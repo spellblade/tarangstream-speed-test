@@ -268,7 +268,7 @@ export default function AboutPage({ onBack }: AboutPageProps) {
             <span>About the Organization</span>
           </div>
           <p className="text-base text-slate-500 dark:text-slate-400 leading-relaxed">
-            Telemetry Labs, Inc. is an independent internet performance
+            Spellblade, Inc. is an independent internet performance
             diagnostics developer dedicated to building high-fidelity measuring
             systems, telemetry software, and distributed monitoring networks.
             Our tools help network administrators, engineers, and everyday users
@@ -282,7 +282,7 @@ export default function AboutPage({ onBack }: AboutPageProps) {
                 Headquarters
               </span>
               <p className="text-xs text-slate-600 dark:text-slate-350 leading-relaxed">
-                Telemetry Labs, Inc.
+                Spellblade Labs, Inc.
                 <br />
                 100 Science Park Drive, Suite 450
                 <br />
@@ -299,10 +299,10 @@ export default function AboutPage({ onBack }: AboutPageProps) {
                   Feedback & Discussion
                 </span>
                 <a
-                  href="mailto:contact@telemetrylabs.example.com"
+                  href="mailto:contact@spellblade.com"
                   className="text-sm font-bold text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-350 hover:underline transition-all block truncate"
                 >
-                  contact@telemetrylabs.example.com
+                  contact@spellblade.com
                 </a>
               </div>
             </div>
