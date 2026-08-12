@@ -10,7 +10,14 @@ Standards for contributing to **this** repository (React + TypeScript + Express)
 - **Server:** Express in `server.ts`  
 - **Formatting:** Prettier via editor (VS Code) — match existing style after format-on-save  
 
-There is no mandatory ESLint config in-repo yet. CI enforces **`npm run lint`** (`tsc --noEmit`) and **`npm run build`**.
+There is no mandatory ESLint config in-repo yet. CI enforces **`npm run lint`** (`tsc --noEmit`), **`npm test`** (Vitest), and **`npm run build`**.
+
+## Tests
+
+- Framework: **Vitest** (configured in `vite.config.ts`)
+- Place unit tests next to source as `*.test.ts` under `src/`
+- Prefer pure helpers and mapping math; avoid flaky network-dependent tests in CI
+- Scripts: `npm test` (CI / one-shot), `npm run test:watch` (local iteration)
 
 ## Layout and responsibility
 

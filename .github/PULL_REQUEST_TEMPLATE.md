@@ -9,6 +9,7 @@ Fixes #
 ## Checklist
 
 - [ ] `npm run lint` passes
+- [ ] `npm test` passes
 - [ ] `npm run build` passes
 - [ ] CHANGELOG.md updated under `[Unreleased]` if user-visible
 - [ ] No secrets or `.env` files committed

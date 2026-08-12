@@ -37,13 +37,17 @@ Keep commits focused and message subjects under ~72 characters.
 npm install
 npm run dev      # development server (default port 3000)
 npm run lint     # TypeScript check (tsc --noEmit)
+npm test         # unit tests (Vitest, single run)
+npm run test:watch  # Vitest in watch mode
 npm run build    # production client + server bundle
 npm start        # serve production build
 ```
 
+CI (GitHub Actions) runs **lint**, **test**, and **build** on pull requests and pushes to `master`, `develop`, and `staging`. You can rely on CI if you do not install dependencies locally.
+
 Before opening a PR:
 
-1. Run `npm run lint` and `npm run build` successfully
+1. Run `npm run lint`, `npm test`, and `npm run build` successfully (or ensure CI will cover them)
 2. Summarize what changed and why in the PR description
 3. Link related issues when applicable
 
