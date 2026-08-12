@@ -33,6 +33,11 @@ import { sanitizeHistoryEntries } from "./utils/historySanitize";
 import { validatePingHostUrl } from "./utils/urlValidation";
 import { sanitizeCustomServers } from "./utils/customServers";
 import { buildHistoryCsv } from "./utils/csv";
+import {
+  PROGRESS_COMPLETE,
+  applyDialColdStart,
+  mapPhaseProgress,
+} from "./utils/progressMap";
 import Gauge from "./components/Gauge";
 import StatsCard from "./components/StatsCard";
 
@@ -309,6 +314,11 @@ export default function App() {
     speedsRef.current = speeds;
   }, [speeds]);
 
+  const peakSpeedsRef = useRef(peakSpeeds);
+  useEffect(() => {
+    peakSpeedsRef.current = peakSpeeds;
+  }, [peakSpeeds]);
+
   // ISP and Servers
   const [ispInfo, setIspInfo] = useState<IspInfo | null>(null);
   const [isIspLoading, setIsIspLoading] = useState(true);
@@ -531,6 +541,9 @@ export default function App() {
   // Abort controller and cancellation tracking for speed tests
   const activeTestControllerRef = useRef<AbortController | null>(null);
   const isInterruptedRef = useRef<boolean>(false);
+  /** performance.now() when download/upload phase actually begins (dial cold-start). */
+  const downloadPhaseStartedAtRef = useRef<number | null>(null);
+  const uploadPhaseStartedAtRef = useRef<number | null>(null);
 
   const interruptSpeedTest = () => {
     isInterruptedRef.current = true;
@@ -621,10 +634,14 @@ export default function App() {
     // Reset speeds
     setSpeeds({ download: 0, upload: 0, ping: 0, jitter: 0 });
     setPeakSpeeds({ download: 0, upload: 0 });
-    setOverallProgress(2);
+    downloadPhaseStartedAtRef.current = null;
+    uploadPhaseStartedAtRef.current = null;
+    setOverallProgress(mapPhaseProgress("latency", 0));
     setTestPhase("latency");
     setPacketsSent(0);
     setLivePps(0);
+    setLiveEMA(0);
+    setLiveWMA(0);
 
     try {
       // 1. Resolve testing node (find closest server if optimal is selected)
@@ -726,9 +743,8 @@ export default function App() {
           const pps = livePing > 0 ? 1000 / livePing : 0;
           setLivePps(parseFloat(pps.toFixed(1)));
 
-          // Smoothly advance overall progress from 2% to 15% during handshake phase
-          const subProgress = 2 + Math.round((packetNum / 10) * 13);
-          setOverallProgress(subProgress);
+          // Latency segment: equal third (0–33%)
+          setOverallProgress(mapPhaseProgress("latency", packetNum / 10));
 
           // Instantly tick current latency ping display
           setSpeeds((prev) => ({
@@ -751,7 +767,7 @@ export default function App() {
         ping: Math.round(basePing),
         jitter: Math.round(baseJitter),
       }));
-      setOverallProgress(15);
+      setOverallProgress(mapPhaseProgress("latency", 1));
 
       // Give a short pause to read latency phase before jumping indicators
       await new Promise((resolve, reject) => {
@@ -763,7 +779,12 @@ export default function App() {
       });
 
       if (isInterruptedRef.current || signal.aborted) return;
+      // Flip phase only when download is about to start
       setTestPhase("download");
+      downloadPhaseStartedAtRef.current = performance.now();
+      setSpeeds((prev) => ({ ...prev, download: 0 }));
+      setLiveEMA(0);
+      setLiveWMA(0);
 
       // Step 2: Run Download Pipeline
       let baselineDownloadTarget = 450;
@@ -792,9 +813,8 @@ export default function App() {
           estimatedPacketLoss: number,
         ) => {
           if (isInterruptedRef.current || signal.aborted) return;
-          // Map 0-100% test progress to 15-55% overall progress
-          const overallProg = 15 + Math.round((progress / 100) * 40);
-          setOverallProgress(overallProg);
+          // Download segment: equal third (33–66%)
+          setOverallProgress(mapPhaseProgress("download", progress / 100));
 
           setLiveEMA(liveEMAVal);
           setLiveWMA(liveWMAVal);
@@ -808,9 +828,14 @@ export default function App() {
                 ? liveWMAVal
                 : parseFloat(((liveEMAVal + liveWMAVal) / 2).toFixed(2));
 
+          const dialSpeed = applyDialColdStart(
+            downloadPhaseStartedAtRef.current,
+            prefSpeed,
+          );
+
           setSpeeds((prev) => ({
             ...prev,
-            download: prefSpeed,
+            download: dialSpeed,
             packetLoss: estimatedPacketLoss,
             maxStreams: Math.max(prev.maxStreams || 1, activeStreams),
           }));
@@ -862,8 +887,8 @@ export default function App() {
           download: Math.max(prev.download, finalPrefDownload),
         }));
 
-        // Brief transition gap
-        setOverallProgress(55);
+        // Hold end of download segment; phase stays "download" until upload starts
+        setOverallProgress(mapPhaseProgress("download", 1));
         await new Promise((resolve, reject) => {
           const timeout = setTimeout(resolve, 500);
           signal.addEventListener("abort", () => {
@@ -899,6 +924,7 @@ export default function App() {
         const dlDurationTicks = 100;
         let lastSimEMA = 0;
         const simSamples: number[] = [];
+        downloadPhaseStartedAtRef.current = performance.now();
 
         testIntervalRef.current = window.setInterval(() => {
           if (isInterruptedRef.current || signal.aborted) {
@@ -907,8 +933,7 @@ export default function App() {
           }
           dlTicks++;
           const currentPercent = dlTicks / dlDurationTicks;
-          const currentProgressValue = 15 + Math.round(currentPercent * 40);
-          setOverallProgress(currentProgressValue);
+          setOverallProgress(mapPhaseProgress("download", currentPercent));
 
           // Compute actual current flow speed from simulated slow-start waves
           const speed = getSpeedCurveValue(
@@ -950,10 +975,14 @@ export default function App() {
                 ? simWMA
                 : (simEMA + simWMA) / 2;
           const finalPref = parseFloat(prefSpeed.toFixed(2));
+          const dialSpeed = applyDialColdStart(
+            downloadPhaseStartedAtRef.current,
+            finalPref,
+          );
 
           setSpeeds((prev) => ({
             ...prev,
-            download: finalPref,
+            download: dialSpeed,
             packetLoss: simLoss,
             maxStreams: Math.max(prev.maxStreams || 1, simStreams),
           }));
@@ -965,8 +994,7 @@ export default function App() {
           if (dlTicks >= dlDurationTicks) {
             if (testIntervalRef.current) clearInterval(testIntervalRef.current);
 
-            // Brief transition gap
-            setOverallProgress(55);
+            setOverallProgress(mapPhaseProgress("download", 1));
             setTimeout(() => {
               if (isInterruptedRef.current || signal.aborted) return;
               runUploadPhase(
@@ -1002,7 +1030,13 @@ export default function App() {
     signal: AbortSignal,
   ) => {
     if (isInterruptedRef.current || signal.aborted) return;
+    // Phase label flips only when upload actually begins
     setTestPhase("upload");
+    uploadPhaseStartedAtRef.current = performance.now();
+    setSpeeds((prev) => ({ ...prev, upload: 0 }));
+    setLiveEMA(0);
+    setLiveWMA(0);
+    setOverallProgress(mapPhaseProgress("upload", 0));
 
     // Step 3: Run Upload Pipeline
     let baselineUploadTarget = 150;
@@ -1034,8 +1068,7 @@ export default function App() {
             estimatedPacketLoss,
           ) => {
             if (isInterruptedRef.current || signal.aborted) return;
-            const overallProg = 55 + Math.round((progress / 100) * 40);
-            setOverallProgress(overallProg);
+            setOverallProgress(mapPhaseProgress("upload", progress / 100));
 
             setLiveEMA(liveEMAVal);
             setLiveWMA(liveWMAVal);
@@ -1049,9 +1082,14 @@ export default function App() {
                   ? liveWMAVal
                   : parseFloat(((liveEMAVal + liveWMAVal) / 2).toFixed(2));
 
+            const dialSpeed = applyDialColdStart(
+              uploadPhaseStartedAtRef.current,
+              prefSpeed,
+            );
+
             setSpeeds((prev) => ({
               ...prev,
-              upload: prefSpeed,
+              upload: dialSpeed,
               packetLoss: parseFloat(
                 (
                   (prev.packetLoss || 0) * 0.5 +
@@ -1081,8 +1119,7 @@ export default function App() {
             estimatedPacketLoss,
           ) => {
             if (isInterruptedRef.current || signal.aborted) return;
-            const overallProg = 55 + Math.round((progress / 100) * 40);
-            setOverallProgress(overallProg);
+            setOverallProgress(mapPhaseProgress("upload", progress / 100));
 
             setLiveEMA(liveEMAVal);
             setLiveWMA(liveWMAVal);
@@ -1096,9 +1133,14 @@ export default function App() {
                   ? liveWMAVal
                   : parseFloat(((liveEMAVal + liveWMAVal) / 2).toFixed(2));
 
+            const dialSpeed = applyDialColdStart(
+              uploadPhaseStartedAtRef.current,
+              prefSpeed,
+            );
+
             setSpeeds((prev) => ({
               ...prev,
-              upload: prefSpeed,
+              upload: dialSpeed,
               packetLoss: parseFloat(
                 (
                   (prev.packetLoss || 0) * 0.5 +
@@ -1175,6 +1217,7 @@ export default function App() {
       let lastSimEMA = 0;
       const simSamples: number[] = [];
 
+      uploadPhaseStartedAtRef.current = performance.now();
       testIntervalRef.current = window.setInterval(() => {
         if (isInterruptedRef.current || signal.aborted) {
           if (testIntervalRef.current) clearInterval(testIntervalRef.current);
@@ -1182,8 +1225,7 @@ export default function App() {
         }
         ulTicks++;
         const currentPercent = ulTicks / ulDurationTicks;
-        const currentProgressValue = 55 + Math.round(currentPercent * 40);
-        setOverallProgress(currentProgressValue);
+        setOverallProgress(mapPhaseProgress("upload", currentPercent));
 
         // Compute visual speed fluctuation using flow curves
         const speed = getSpeedCurveValue(
@@ -1221,10 +1263,14 @@ export default function App() {
               ? simWMA
               : (simEMA + simWMA) / 2;
         const finalPref = parseFloat(prefSpeed.toFixed(2));
+        const dialSpeed = applyDialColdStart(
+          uploadPhaseStartedAtRef.current,
+          finalPref,
+        );
 
         setSpeeds((prev) => ({
           ...prev,
-          upload: finalPref,
+          upload: dialSpeed,
           packetLoss: parseFloat(
             ((prev.packetLoss || 0) * 0.5 + simLoss * 0.5).toFixed(2),
           ),
@@ -1260,11 +1306,15 @@ export default function App() {
     targetServer: ServerOption,
   ) => {
     if (isInterruptedRef.current) return;
-    setOverallProgress(100);
+    setOverallProgress(PROGRESS_COMPLETE);
     setTestPhase("complete");
 
     // Capture complete results & add directly to history
-    const finalDownload = speedsRef.current.download;
+    // Prefer peak download so cold-start zeros do not wipe the result
+    const finalDownload = Math.max(
+      speedsRef.current.download,
+      peakSpeedsRef.current.download,
+    );
 
     const serverDisplayName =
       selectedServer.id === "optimal"

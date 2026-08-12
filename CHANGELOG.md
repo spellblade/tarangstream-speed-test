@@ -23,7 +23,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Shared progress mapping helper (`mapPhaseProgress`) and dial cold-start helper with unit tests
+
 ### Changed
+
+- Test progress bar uses equal thirds: latency 0–33%, download 33–66%, upload 66–99% (complete 100%)
+- Phase label flips when download/upload actually start (not early on transition timers)
+- Download/upload dials hold near 0 for ~1s cold start while the progress bar continues
 
 ### Fixed
 
