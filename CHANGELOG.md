@@ -30,5 +30,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Dark / light theme with instant theme toggle
 - Stability chart and About page (lazy-loaded)
 
+### Fixed
+
+- Transitive dependency security patches via `npm audit fix`: `body-parser` ≥1.20.6, `nanoid` ≥3.3.17, `postcss` ≥8.5.23
+
 [Unreleased]: https://github.com/spellblade/tarangstream-speed-test/compare/v0.1.0...HEAD
 [0.1.0]: https://github.com/spellblade/tarangstream-speed-test/releases/tag/v0.1.0
