@@ -1,10 +1,58 @@
-# Tarangstream — Advanced Network Speed & Stability Diagnostics
+# TarangStream — Advanced Network Speed & Stability Diagnostics
 
-Tarangstream is a high-performance, full-stack network diagnostics utility built with **React**, **TypeScript**, and **Express**. It provides real-time download/upload speeds, latency (ping), jitter, and packet loss measurements. Utilizing advanced mathematical smoothing and real-world multi-threaded testing pipelines, Tarangstream offers professional-grade precision directly in your browser.
+[![Version](https://img.shields.io/badge/version-0.1.0-blue.svg)](VERSION)
+[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+
+> Full-stack browser diagnostics for download, upload, latency, and jitter — built with React, TypeScript, and Express.
+
+TarangStream is a high-performance network diagnostics utility. It provides real-time download/upload speeds, latency (ping), jitter, and packet-loss estimates using multi-stream testing pipelines and mathematical smoothing (EMA / WMA / Hybrid).
+
+## Quick Start
+
+**Prerequisites:** Node.js 18+ and npm.
+
+```bash
+npm install
+npm run dev      # http://localhost:3000
+```
+
+Production:
+
+```bash
+npm run build
+npm start
+```
+
+| Command | Purpose |
+|---------|---------|
+| `npm run lint` | TypeScript check (`tsc --noEmit`) |
+| `npm run build` | Vite client + bundled Express server |
+| `npm start` | Serve production build |
+
+## Branches
+
+| Branch | Role |
+|--------|------|
+| `master` | Stable / releases |
+| `develop` | Integration |
+| `staging` | Optional pre-release |
+| `feature/*` | Feature work |
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the full workflow.
+
+## Documentation
+
+- [Docs home](docs/index.md)
+- [Setup](docs/setup.md)
+- [Architecture](docs/architecture.md)
+- [Usage](docs/usage.md)
+- [Coding standards](docs/coding-standards.md)
+- [Measurement methodology](docs/measurement-methodology.md)
+- [Changelog](CHANGELOG.md) · [Contributing](CONTRIBUTING.md) · [Security](SECURITY.md) · [License (MIT)](LICENSE)
 
 ---
 
-## 🚀 Core Features & Architectural Enhancements
+## Core Features & Architectural Enhancements
 
 ### 1. Robust Upload and Download Dials
 *   **1000ms Sliding Window Integration**: Replaced raw 100ms micro-slices with a continuous sliding window algorithm. This filters out bursty network spikes, stabilizes the real-time dials, and aligns dial movement with the user's overall average bandwidth.
