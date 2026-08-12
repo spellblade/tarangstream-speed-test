@@ -5,36 +5,21 @@ import express, {
 } from "express";
 import path from "path";
 import { createServer as createViteServer } from "vite";
+import {
+  createRateLimiter,
+  getClientIp,
+  DEFAULT_MAX_API_REQUESTS_PER_MINUTE,
+  DEFAULT_RATE_WINDOW_MS,
+} from "./src/utils/rateLimit";
 
 const MAX_DOWNLOAD_CONNECTIONS_PER_IP = 8;
-const MAX_API_REQUESTS_PER_MINUTE = 60;
 const DOWNLOAD_STREAM_MAX_MS = 30_000;
-const RATE_WINDOW_MS = 60_000;
 
 const downloadConnections = new Map<string, number>();
-const apiRequestLog = new Map<string, number[]>();
-
-function getClientIp(req: Request): string {
-  const forwarded = req.headers["x-forwarded-for"];
-  if (typeof forwarded === "string" && forwarded.length > 0) {
-    return forwarded.split(",")[0].trim();
-  }
-  return req.socket.remoteAddress || "unknown";
-}
-
-function isRateLimited(ip: string): boolean {
-  const now = Date.now();
-  const timestamps = (apiRequestLog.get(ip) || []).filter(
-    (t) => now - t < RATE_WINDOW_MS,
-  );
-  if (timestamps.length >= MAX_API_REQUESTS_PER_MINUTE) {
-    apiRequestLog.set(ip, timestamps);
-    return true;
-  }
-  timestamps.push(now);
-  apiRequestLog.set(ip, timestamps);
-  return false;
-}
+const apiRateLimiter = createRateLimiter(
+  DEFAULT_MAX_API_REQUESTS_PER_MINUTE,
+  DEFAULT_RATE_WINDOW_MS,
+);
 
 function securityHeaders(_req: Request, res: Response, next: NextFunction) {
   res.set("Cache-Control", "no-store, no-cache, must-revalidate, private");
@@ -46,7 +31,7 @@ function securityHeaders(_req: Request, res: Response, next: NextFunction) {
 
 function apiRateLimit(req: Request, res: Response, next: NextFunction) {
   const ip = getClientIp(req);
-  if (isRateLimited(ip)) {
+  if (apiRateLimiter.isLimited(ip)) {
     res
       .status(429)
       .json({ error: "Too many requests. Please try again later." });
