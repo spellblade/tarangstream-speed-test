@@ -29,12 +29,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Express `/api/download` and `/api/upload` endpoints with size and content-type guards
 - Dark / light theme with instant theme toggle
 - Stability chart and About page (lazy-loaded)
-- Optional Semgrep and SonarQube GitHub Actions workflows (skip cleanly when secrets are not configured)
+- Optional Semgrep GitHub Actions workflows (skip cleanly when secrets are not configured)
 
 ### Changed
 
 - CI runs on push to `feature/*` as well as master/develop/staging; PR targets unchanged
-- Harden Semgrep and SonarQube workflows: skip when secrets are missing; Sonar scopes sources/tests and excludes `dist`, assets, and unit tests from main code
+- Harden Semgrep workflow: skip when secrets are missing; Sonar scopes sources/tests and excludes `dist`, assets, and unit tests from main code
 
 ### Fixed
 
