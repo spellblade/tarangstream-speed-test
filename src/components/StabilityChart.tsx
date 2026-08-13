@@ -329,36 +329,56 @@ export default function StabilityChart({
         {/* Toggle controls & Clear button */}
         <div className="flex flex-wrap items-center justify-between gap-3 mb-4 select-none">
           <div className="flex items-center gap-1.5 p-1 bg-slate-100 dark:bg-slate-950 rounded-xl border border-slate-200/50 dark:border-slate-850 text-xs">
-            <button
-              onClick={() => setActiveMetric("all")}
-              className={`px-3 py-1.5 rounded-lg font-bold transition-all ${activeMetric === "all" ? "bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-105 shadow-sm border border-slate-200/40 dark:border-slate-800" : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"}`}
-            >
-              All Signals
-            </button>
-            <button
-              onClick={() => setActiveMetric("download")}
-              className={`px-3 py-1.5 rounded-lg font-bold transition-all ${activeMetric === "download" ? "bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 border border-blue-100/50 dark:border-blue-900/30" : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"}`}
-            >
-              Download
-            </button>
-            <button
-              onClick={() => setActiveMetric("upload")}
-              className={`px-3 py-1.5 rounded-lg font-bold transition-all ${activeMetric === "upload" ? "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border border-emerald-100/50 dark:border-emerald-900/30" : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"}`}
-            >
-              Upload
-            </button>
-            <button
-              onClick={() => setActiveMetric("ping")}
-              className={`px-3 py-1.5 rounded-lg font-bold transition-all ${activeMetric === "ping" ? "bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-450 border border-amber-100/50 dark:border-amber-900/30" : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"}`}
-            >
-              Ping
-            </button>
-            <button
-              onClick={() => setActiveMetric("jitter")}
-              className={`px-3 py-1.5 rounded-lg font-bold transition-all ${activeMetric === "jitter" ? "bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-450 border border-rose-100/50 dark:border-rose-900/30" : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"}`}
-            >
-              Jitter
-            </button>
+            {(
+              [
+                {
+                  id: "all" as const,
+                  label: "All Signals",
+                  active:
+                    "bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 shadow-sm border-slate-200/40 dark:border-slate-800",
+                },
+                {
+                  id: "download" as const,
+                  label: "Download",
+                  active:
+                    "bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 border-blue-100/50 dark:border-blue-900/30",
+                },
+                {
+                  id: "upload" as const,
+                  label: "Upload",
+                  active:
+                    "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border-emerald-100/50 dark:border-emerald-900/30",
+                },
+                {
+                  id: "ping" as const,
+                  label: "Ping",
+                  active:
+                    "bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 border-amber-100/50 dark:border-amber-900/30",
+                },
+                {
+                  id: "jitter" as const,
+                  label: "Jitter",
+                  active:
+                    "bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 border-rose-100/50 dark:border-rose-900/30",
+                },
+              ] as const
+            ).map((metric) => {
+              const isActive = activeMetric === metric.id;
+              return (
+                <button
+                  key={metric.id}
+                  type="button"
+                  onClick={() => setActiveMetric(metric.id)}
+                  className={`px-3 py-1.5 rounded-lg font-bold border cursor-pointer transition-colors duration-150 ${
+                    isActive
+                      ? metric.active
+                      : "bg-transparent text-slate-500 dark:text-slate-400 border-transparent hover:text-slate-700 dark:hover:text-slate-200"
+                  }`}
+                >
+                  {metric.label}
+                </button>
+              );
+            })}
           </div>
 
           <div className="flex items-center gap-2">
