@@ -19,6 +19,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+## [0.1.3] - 2026-08-15
+
+### Added
+
+- Shared progress mapping helper (`mapPhaseProgress`) and dial cold-start helper with unit tests
+
+### Changed
+
+- Test progress bar uses equal thirds: latency 0–33%, download 33–66%, upload 66–99% (complete 100%)
+- Phase label flips when download/upload actually start (not early on transition timers)
+- Download/upload dials hold near 0 for ~1s cold start while the progress bar continues
+- Refactor App speed-test path: shared `pickPreferredSpeed` helper, seed/server defaults moved out of `App.tsx`, deduped upload progress handlers
+
+### Fixed
+
 ## [0.1.2] - 2026-08-12
 
 ### Added
@@ -70,7 +85,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Dark / light theme with instant theme toggle
 - Stability chart and About page (lazy-loaded)
 
-[Unreleased]: https://github.com/spellblade/tarangstream-speed-test/compare/v0.1.2...HEAD
-[0.1.2]: https://github.com/spellblade/tarangstream-speed-test/releases/tag/v0.1.2
+[Unreleased]: https://github.com/spellblade/tarangstream-speed-test/compare/v0.1.3...HEAD
+[0.1.3]: https://github.com/spellblade/tarangstream-speed-test/releases/tag/v0.1.3
+[0.1.2]: https://github.com/spellblade/tarangstream-speed-test/compare/v0.1.2...v0.1.3
 [0.1.1]: https://github.com/spellblade/tarangstream-speed-test/compare/v0.1.1...v0.1.2
 [0.1.0]: https://github.com/spellblade/tarangstream-speed-test/compare/v0.1.0...v0.1.1

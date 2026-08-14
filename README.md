@@ -1,6 +1,6 @@
 # TarangStream — Advanced Network Speed & Stability Diagnostics
 
-[![Version](https://img.shields.io/badge/version-0.1.2-blue.svg)](VERSION)
+[![Version](https://img.shields.io/badge/version-0.1.3-blue.svg)](VERSION)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
 > Full-stack browser diagnostics for download, upload, latency, and jitter — built with React, TypeScript, and Express.
