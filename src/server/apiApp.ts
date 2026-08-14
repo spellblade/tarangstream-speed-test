@@ -7,6 +7,7 @@ import express, {
 import {
   createRateLimiter,
   getClientIp,
+  isTrustProxyEnabled,
   DEFAULT_MAX_API_REQUESTS_PER_MINUTE,
   DEFAULT_RATE_WINDOW_MS,
   type RateLimiter,
@@ -22,6 +23,8 @@ export type ApiAppOptions = {
   maxDownloadConnections?: number;
   downloadStreamMaxMs?: number;
   maxUploadBytes?: number;
+  /** Honor X-Forwarded-For. Defaults to TRUST_PROXY env. */
+  trustProxy?: boolean;
 };
 
 function securityHeaders(_req: Request, res: Response, next: NextFunction) {
@@ -42,6 +45,7 @@ export function createApiApp(options: ApiAppOptions = {}): Express {
   const downloadStreamMaxMs =
     options.downloadStreamMaxMs ?? DOWNLOAD_STREAM_MAX_MS;
   const maxUploadBytes = options.maxUploadBytes ?? MAX_UPLOAD_BYTES;
+  const trustProxy = options.trustProxy ?? isTrustProxyEnabled();
 
   const downloadConnections = new Map<string, number>();
   const apiRateLimiter =
@@ -55,7 +59,7 @@ export function createApiApp(options: ApiAppOptions = {}): Express {
   app.use(securityHeaders);
 
   function apiRateLimit(req: Request, res: Response, next: NextFunction) {
-    const ip = getClientIp(req);
+    const ip = getClientIp(req, { trustProxy });
     if (apiRateLimiter.isLimited(ip)) {
       res
         .status(429)
@@ -66,7 +70,7 @@ export function createApiApp(options: ApiAppOptions = {}): Express {
   }
 
   app.get("/api/download", apiRateLimit, (req, res) => {
-    const ip = getClientIp(req);
+    const ip = getClientIp(req, { trustProxy });
     const current = downloadConnections.get(ip) || 0;
     if (current >= maxDownloadConnections) {
       res.status(429).json({
