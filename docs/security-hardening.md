@@ -115,6 +115,20 @@ npm test -- src/utils/rateLimit.test.ts
 
 **Pass:** all cases succeed, including `drops the IP key after the sliding window is empty` (about **12** tests in that file).
 
+## Generic upload errors
+
+If the upload stream errors after it is accepted, the client gets **500** and `{ "error": "Upload failed. Please try again." }`. The real exception is logged on the server only.
+
+### Verify
+
+No running server required:
+
+```bash
+npm test -- src/server/apiApp.test.ts
+```
+
+**Pass:** `sendGenericUploadError` cases succeed (generic body, no leaked `err.message`).
+
 ## Later checks
 
-More procedures will be added here as further items land (CSP, abort listeners, generic upload errors, and so on).
+More procedures will be added here as further items land (CSP, re-validate custom servers on use, abort listeners).
