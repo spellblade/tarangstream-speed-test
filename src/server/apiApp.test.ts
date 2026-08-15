@@ -1,8 +1,12 @@
 import http from "node:http";
 import type { AddressInfo } from "node:net";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import request from "supertest";
-import { createApiApp } from "./apiApp";
+import {
+  createApiApp,
+  GENERIC_UPLOAD_ERROR,
+  sendGenericUploadError,
+} from "./apiApp";
 import { createRateLimiter } from "../utils/rateLimit";
 
 describe("createApiApp routes", () => {
@@ -246,5 +250,34 @@ describe("createApiApp routes", () => {
 
     held1.destroy();
     held2.destroy();
+  });
+});
+
+describe("sendGenericUploadError", () => {
+  it("sends a generic 500 body and does not leak err.message", () => {
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const json = vi.fn();
+    const status = vi.fn().mockReturnValue({ json });
+    const res = { headersSent: false, status } as any;
+
+    sendGenericUploadError(res, new Error("secret-internal-detail"));
+
+    expect(status).toHaveBeenCalledWith(500);
+    expect(json).toHaveBeenCalledWith({ error: GENERIC_UPLOAD_ERROR });
+    expect(json.mock.calls[0][0].error).not.toContain("secret-internal-detail");
+    errorSpy.mockRestore();
+  });
+
+  it("does not write if headers were already sent", () => {
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const json = vi.fn();
+    const status = vi.fn().mockReturnValue({ json });
+    const res = { headersSent: true, status } as any;
+
+    sendGenericUploadError(res, new Error("late"));
+
+    expect(status).not.toHaveBeenCalled();
+    expect(json).not.toHaveBeenCalled();
+    errorSpy.mockRestore();
   });
 });

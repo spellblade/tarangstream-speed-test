@@ -17,6 +17,15 @@ export const MAX_DOWNLOAD_CONNECTIONS_PER_IP = 8;
 export const MAX_UPLOAD_CONNECTIONS_PER_IP = 8;
 export const DOWNLOAD_STREAM_MAX_MS = 30_000;
 export const MAX_UPLOAD_BYTES = 2 * 1024 * 1024;
+export const GENERIC_UPLOAD_ERROR = "Upload failed. Please try again.";
+
+/** Log the real error server-side; never send err.message to the client. */
+export function sendGenericUploadError(res: Response, err: unknown): void {
+  console.error("[TarangStream] upload error:", err);
+  if (!res.headersSent) {
+    res.status(500).json({ error: GENERIC_UPLOAD_ERROR });
+  }
+}
 
 export type ApiAppOptions = {
   /** Inject a limiter (tests); default is a fresh instance per app. */
@@ -217,9 +226,7 @@ export function createApiApp(options: ApiAppOptions = {}): Express {
 
     req.on("error", (err) => {
       releaseUpload();
-      if (!res.headersSent) {
-        res.status(500).json({ error: err.message });
-      }
+      sendGenericUploadError(res, err);
     });
   });
 
