@@ -49,6 +49,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for the full workflow.
 - [Usage](docs/usage.md)
 - [Coding standards](docs/coding-standards.md)
 - [Measurement methodology](docs/measurement-methodology.md)
+- [Security hardening](docs/security-hardening.md)
 - [Changelog](CHANGELOG.md) · [Contributing](CONTRIBUTING.md) · [Security](SECURITY.md) · [License (MIT)](LICENSE)
 
 ---

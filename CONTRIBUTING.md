@@ -50,6 +50,7 @@ Before opening a PR:
 1. Run `npm run lint`, `npm test`, and `npm run build` successfully (or ensure CI will cover them)
 2. Summarize what changed and why in the PR description
 3. Link related issues when applicable
+4. For security-hardening changes, follow the checks in [docs/security-hardening.md](docs/security-hardening.md)
 
 ## Pull requests
 
