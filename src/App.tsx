@@ -36,6 +36,7 @@ import {
   applyDialColdStart,
   mapPhaseProgress,
 } from "./utils/progressMap";
+import { waitForTimeout } from "./utils/abortWait";
 import {
   blendPacketLoss,
   pickPreferredSpeed,
@@ -658,13 +659,7 @@ export default function App() {
       setOverallProgress(mapPhaseProgress("latency", 1));
 
       // Give a short pause to read latency phase before jumping indicators
-      await new Promise((resolve, reject) => {
-        const timeout = setTimeout(resolve, 800);
-        signal.addEventListener("abort", () => {
-          clearTimeout(timeout);
-          reject(new DOMException("Aborted", "AbortError"));
-        });
-      });
+      await waitForTimeout(800, signal);
 
       if (isInterruptedRef.current || signal.aborted) return;
       // Flip phase only when download is about to start
@@ -766,13 +761,7 @@ export default function App() {
 
         // Hold end of download segment; phase stays "download" until upload starts
         setOverallProgress(mapPhaseProgress("download", 1));
-        await new Promise((resolve, reject) => {
-          const timeout = setTimeout(resolve, 500);
-          signal.addEventListener("abort", () => {
-            clearTimeout(timeout);
-            reject(new DOMException("Aborted", "AbortError"));
-          });
-        });
+        await waitForTimeout(500, signal);
 
         if (isInterruptedRef.current || signal.aborted) return;
         await runUploadPhase(
