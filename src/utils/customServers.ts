@@ -74,3 +74,18 @@ export function sanitizeCustomServers(raw: unknown): ServerOption[] {
 
   return result;
 }
+
+/**
+ * Re-check a server immediately before ping/download.
+ * Strips a probe URL that is no longer allowed (mutated state, old localStorage, etc.).
+ */
+export function sanitizeServerForUse(server: ServerOption): ServerOption {
+  if (!server.url) return server;
+  const checked = validatePingHostUrl(server.url);
+  if (checked.ok) {
+    if (checked.url === server.url) return server;
+    return { ...server, url: checked.url };
+  }
+  const { url: _removed, ...rest } = server;
+  return rest;
+}

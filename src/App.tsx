@@ -26,7 +26,10 @@ import {
 } from "./utils/speedTest";
 import { sanitizeHistoryEntries } from "./utils/historySanitize";
 import { validatePingHostUrl } from "./utils/urlValidation";
-import { sanitizeCustomServers } from "./utils/customServers";
+import {
+  sanitizeCustomServers,
+  sanitizeServerForUse,
+} from "./utils/customServers";
 import { buildHistoryCsv } from "./utils/csv";
 import {
   PROGRESS_COMPLETE,
@@ -596,6 +599,25 @@ export default function App() {
       }
 
       if (isInterruptedRef.current || signal.aborted) return;
+
+      // Re-validate probe URL at use time (in-memory / stale custom servers)
+      const probeSafe = sanitizeServerForUse(targetServer);
+      if (probeSafe.url !== targetServer.url) {
+        targetServer = probeSafe;
+        if (selectedServer.id === probeSafe.id) {
+          setSelectedServer(probeSafe);
+        }
+        setCustomServers((prev) => {
+          const updated = prev.map((s) =>
+            s.id === probeSafe.id ? { ...s, url: probeSafe.url } : s,
+          );
+          localStorage.setItem(
+            "custom_speedtest_servers",
+            JSON.stringify(updated),
+          );
+          return updated;
+        });
+      }
 
       // Step 1: Measure authentic, real hardware physical ping & jitter to our target server
       const pingResults = await measurePing(
