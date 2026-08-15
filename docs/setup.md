@@ -91,7 +91,7 @@ npm run build
 
 ### Rate limiting (429)
 
-The API rate-limits clients (roughly 60 requests/minute) and caps concurrent download streams per IP. Wait and retry, or reduce parallel test spam during development.
+The API rate-limits clients (roughly 60 requests/minute) and caps concurrent download **and upload** streams per IP (default 8 each). Wait and retry, or reduce parallel test spam during development. See [Security hardening](security-hardening.md).
 
 ## Next steps
 

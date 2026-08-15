@@ -30,6 +30,7 @@ Working section for the security-hardening pass. Will become **0.2.0** when that
 ### Fixed
 
 - Honor `X-Forwarded-For` only when `TRUST_PROXY` is set (`1` / `true` / `yes`); otherwise use the socket address
+- Cap concurrent `/api/upload` streams per IP (default 8); extra streams get 429
 
 ## [0.1.3] - 2026-08-15
 

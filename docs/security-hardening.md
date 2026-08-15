@@ -83,6 +83,24 @@ Does not require the server or `TRUST_PROXY` in the shell:
 npm test -- src/utils/rateLimit.test.ts
 ```
 
+## Upload concurrency
+
+`POST /api/upload` allows at most **8** concurrent streams per client IP (same default as download). Further in-flight uploads get **429** with `Too many concurrent upload streams from this client.`
+
+This is **not** the same as the 60/minute rate limit (`Too many requests`). Invalid content-type (400) or oversize `Content-Length` (413) do **not** take a concurrency slot.
+
+### Verify
+
+Prefer the automated test (holds two uploads, third expects 429). Does not need `npm run dev`:
+
+```bash
+npm test -- src/server/apiApp.test.ts
+```
+
+**Pass:** the case `returns 429 when concurrent upload streams exceed the per-IP cap` succeeds.
+
+Manual `/dev/tcp` hold-open snippets are optional and often flaky in Codespaces (`exec` can close the shell; the live server cap is **8**, so two held uploads will not 429 a third request). Use `npm test` as the source of truth.
+
 ## Later checks
 
-More procedures will be added here as further items land (upload concurrency cap, CSP, map pruning, and so on).
+More procedures will be added here as further items land (CSP, map pruning, and so on).
