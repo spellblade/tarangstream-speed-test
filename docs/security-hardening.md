@@ -160,6 +160,22 @@ curl -sI http://127.0.0.1:3000/api/health | grep -i content-security-policy
 
 **Pass:** header is present and includes `unsafe-eval`. Open the app in the browser; the UI must render (gauges, theme toggle).
 
+## Custom server URLs at use time
+
+Custom probe URLs are checked with `validatePingHostUrl` when added and when loaded from `localStorage`. They are checked **again** when a test starts (`sanitizeServerForUse`). A blocked URL (loopback, private IP, non-http scheme, etc.) is stripped from the chosen server and persisted so ping does not fetch it.
+
+That does **not** stop download/upload. Those use `/api/download` and `/api/upload` (or localhost CDN / simulated upload). In DevTools they show as **same-origin**. That is expected.
+
+### Verify
+
+```bash
+npm test -- src/utils/customServers.test.ts
+```
+
+**Pass:** `sanitizeServerForUse` keeps public URLs and strips `http://127.0.0.1:3000`.
+
+Optional: put `http://127.0.0.1/` on a custom server in `localStorage` and reload — the `url` field should be gone. A full test should still show download **200** same-origin.
+
 ## Later checks
 
-More procedures will be added here as further items land (re-validate custom servers on use, abort listeners).
+More procedures will be added here as further items land (abort listeners).
