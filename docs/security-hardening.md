@@ -129,6 +129,37 @@ npm test -- src/server/apiApp.test.ts
 
 **Pass:** `sendGenericUploadError` cases succeed (generic body, no leaked `err.message`).
 
+## Content-Security-Policy
+
+Every response sets `Content-Security-Policy`:
+
+| Mode | `script-src` | When |
+|------|----------------|------|
+| Development / test | `'self' 'unsafe-inline' 'unsafe-eval'` | `NODE_ENV` is not `production` (`npm run dev`) |
+| Production | `'self'` only | `NODE_ENV=production` |
+
+Shared rules: `default-src 'self'`, `style-src` allows inline (theme toggle), `connect-src` includes `https:` / `http:` / `ws:` / `wss:` (ISP lookups, CDN download on localhost, custom probes, Vite HMR), `frame-ancestors 'none'`, `object-src 'none'`.
+
+A production-only script policy blanks the Vite dev UI. Do not force the production CSP on `npm run dev`.
+
+### Verify
+
+Automated (no `npm run dev`):
+
+```bash
+npm test -- src/server/apiApp.test.ts
+```
+
+**Pass:** health response includes CSP; production policy has no `unsafe-eval`; dev policy includes it.
+
+Live header (dev server running):
+
+```bash
+curl -sI http://127.0.0.1:3000/api/health | grep -i content-security-policy
+```
+
+**Pass:** header is present and includes `unsafe-eval`. Open the app in the browser; the UI must render (gauges, theme toggle).
+
 ## Later checks
 
-More procedures will be added here as further items land (CSP, re-validate custom servers on use, abort listeners).
+More procedures will be added here as further items land (re-validate custom servers on use, abort listeners).

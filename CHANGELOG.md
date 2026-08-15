@@ -33,6 +33,7 @@ Working section for the security-hardening pass. Will become **0.2.0** when that
 - Cap concurrent `/api/upload` streams per IP (default 8); extra streams get 429
 - Drop idle IP keys from the API rate-limit map when the sliding window is empty
 - Return a generic 500 body on `/api/upload` stream errors (do not leak `err.message`)
+- Add Content-Security-Policy (strict `script-src` in production; Vite-compatible `unsafe-inline` / `unsafe-eval` in development)
 
 ## [0.1.3] - 2026-08-15
 
