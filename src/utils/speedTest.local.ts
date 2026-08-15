@@ -112,7 +112,7 @@ export async function runLocalUploadTest(
       isFinished = true;
       reject(new DOMException("Aborted", "AbortError"));
     };
-    if (signal) signal.addEventListener("abort", abortHandler);
+    if (signal) signal.addEventListener("abort", abortHandler, { once: true });
 
     const interval = setInterval(() => {
       if (signal?.aborted || isFinished) {

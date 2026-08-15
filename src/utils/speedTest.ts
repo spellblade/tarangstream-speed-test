@@ -1,4 +1,5 @@
 import { IspInfo, ServerOption } from "../types";
+import { waitForTimeout } from "./abortWait";
 
 /**
  * Calculates geographical distance between two points in km using the Haversine formula.
@@ -135,15 +136,7 @@ export async function measurePing(
     }
 
     // Sleep briefly between request bursts
-    await new Promise((resolve, reject) => {
-      const timeout = setTimeout(resolve, 80);
-      if (signal) {
-        signal.addEventListener("abort", () => {
-          clearTimeout(timeout);
-          reject(new DOMException("Aborted", "AbortError"));
-        });
-      }
-    });
+    await waitForTimeout(80, signal);
   }
 
   const sorted = [...times].sort((a, b) => a - b);
@@ -528,15 +521,7 @@ export async function runRealDownloadTest(
   }
 
   // Wait 100ms to allow connection to set up
-  await new Promise((resolve, reject) => {
-    const timeout = setTimeout(resolve, 100);
-    if (signal) {
-      signal.addEventListener("abort", () => {
-        clearTimeout(timeout);
-        reject(new DOMException("Aborted", "AbortError"));
-      });
-    }
-  });
+  await waitForTimeout(100, signal);
 
   let lastCheckTime = performance.now();
   const rollingHistory: { time: number; bytes: number }[] = [];
@@ -554,7 +539,7 @@ export async function runRealDownloadTest(
     };
 
     if (signal) {
-      signal.addEventListener("abort", abortHandler);
+      signal.addEventListener("abort", abortHandler, { once: true });
     }
 
     const interval = setInterval(() => {
@@ -827,7 +812,7 @@ export async function runRealUploadTest(
     };
 
     if (signal) {
-      signal.addEventListener("abort", abortHandler);
+      signal.addEventListener("abort", abortHandler, { once: true });
     }
 
     // Start initial upload pipeline

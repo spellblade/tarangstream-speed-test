@@ -55,6 +55,9 @@ Copy [`.env.example`](../.env.example) if you maintain a local `.env` (gitignore
 |----------|---------|
 | `PORT` | Documented as optional server port (default **3000**) |
 | `NODE_ENV` | `development` uses Vite middleware; `production` serves static `dist/` |
+| `TRUST_PROXY` | When `1`, `true`, or `yes`, honor `X-Forwarded-For` for rate limits and download caps. **Default off.** Enable only behind a trusted reverse proxy. |
+
+How to verify `TRUST_PROXY` (Codespaces or local): [Security hardening](security-hardening.md).
 
 **Note:** As of 0.1.0, `server.ts` selects production vs development from `NODE_ENV` but the listen port is **hardcoded to 3000**. Treat `PORT` in `.env.example` as intended configuration until the server reads `process.env.PORT`. The `dotenv` package is listed in dependencies; ensure it is loaded if you rely on a `.env` file.
 
@@ -88,7 +91,7 @@ npm run build
 
 ### Rate limiting (429)
 
-The API rate-limits clients (roughly 60 requests/minute) and caps concurrent download streams per IP. Wait and retry, or reduce parallel test spam during development.
+The API rate-limits clients (roughly 60 requests/minute) and caps concurrent download **and upload** streams per IP (default 8 each). Wait and retry, or reduce parallel test spam during development. See [Security hardening](security-hardening.md).
 
 ## Next steps
 
