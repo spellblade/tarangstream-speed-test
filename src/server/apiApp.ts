@@ -14,6 +14,7 @@ import {
 } from "../utils/rateLimit";
 
 export const MAX_DOWNLOAD_CONNECTIONS_PER_IP = 8;
+export const MAX_UPLOAD_CONNECTIONS_PER_IP = 8;
 export const DOWNLOAD_STREAM_MAX_MS = 30_000;
 export const MAX_UPLOAD_BYTES = 2 * 1024 * 1024;
 
@@ -21,6 +22,7 @@ export type ApiAppOptions = {
   /** Inject a limiter (tests); default is a fresh instance per app. */
   rateLimiter?: RateLimiter;
   maxDownloadConnections?: number;
+  maxUploadConnections?: number;
   downloadStreamMaxMs?: number;
   maxUploadBytes?: number;
   /** Honor X-Forwarded-For. Defaults to TRUST_PROXY env. */
@@ -42,12 +44,15 @@ function securityHeaders(_req: Request, res: Response, next: NextFunction) {
 export function createApiApp(options: ApiAppOptions = {}): Express {
   const maxDownloadConnections =
     options.maxDownloadConnections ?? MAX_DOWNLOAD_CONNECTIONS_PER_IP;
+  const maxUploadConnections =
+    options.maxUploadConnections ?? MAX_UPLOAD_CONNECTIONS_PER_IP;
   const downloadStreamMaxMs =
     options.downloadStreamMaxMs ?? DOWNLOAD_STREAM_MAX_MS;
   const maxUploadBytes = options.maxUploadBytes ?? MAX_UPLOAD_BYTES;
   const trustProxy = options.trustProxy ?? isTrustProxyEnabled();
 
   const downloadConnections = new Map<string, number>();
+  const uploadConnections = new Map<string, number>();
   const apiRateLimiter =
     options.rateLimiter ??
     createRateLimiter(
@@ -137,6 +142,7 @@ export function createApiApp(options: ApiAppOptions = {}): Express {
   });
 
   app.post("/api/upload", apiRateLimit, (req, res) => {
+    const ip = getClientIp(req, { trustProxy });
     const contentType = req.headers["content-type"];
     if (!contentType || !contentType.includes("application/octet-stream")) {
       res.status(400).json({
@@ -158,8 +164,28 @@ export function createApiApp(options: ApiAppOptions = {}): Express {
       }
     }
 
+    const currentUploads = uploadConnections.get(ip) || 0;
+    if (currentUploads >= maxUploadConnections) {
+      res.status(429).json({
+        error: "Too many concurrent upload streams from this client.",
+      });
+      return;
+    }
+    uploadConnections.set(ip, currentUploads + 1);
+
+    let released = false;
+    const releaseUpload = () => {
+      if (released) return;
+      released = true;
+      const count = uploadConnections.get(ip) || 1;
+      if (count <= 1) uploadConnections.delete(ip);
+      else uploadConnections.set(ip, count - 1);
+    };
+
     let bytesReceived = 0;
     let limitExceeded = false;
+
+    req.on("close", releaseUpload);
 
     req.on("data", (chunk) => {
       if (limitExceeded) return;
@@ -171,20 +197,26 @@ export function createApiApp(options: ApiAppOptions = {}): Express {
         if (!res.headersSent) {
           res.status(413).json({ error: "Payload too large. Upload aborted." });
         }
+        releaseUpload();
       }
     });
 
     req.on("end", () => {
-      if (limitExceeded) return;
+      if (limitExceeded) {
+        releaseUpload();
+        return;
+      }
 
       res.json({
         status: "ok",
         bytesReceived,
         message: "Upload processed successfully",
       });
+      releaseUpload();
     });
 
     req.on("error", (err) => {
+      releaseUpload();
       if (!res.headersSent) {
         res.status(500).json({ error: err.message });
       }

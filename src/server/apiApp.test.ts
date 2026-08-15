@@ -176,4 +176,75 @@ describe("createApiApp routes", () => {
     held1.res.destroy();
     held2.res.destroy();
   });
+
+  it("returns 429 when concurrent upload streams exceed the per-IP cap", async () => {
+    const instance = app({
+      maxUploadConnections: 2,
+      rateLimiter: createRateLimiter(50, 60_000),
+    });
+    const { port } = await listen(instance);
+
+    const holdUpload = () =>
+      new Promise<http.ClientRequest>((resolve, reject) => {
+        const req = http.request(
+          {
+            hostname: "127.0.0.1",
+            port,
+            path: "/api/upload",
+            method: "POST",
+            headers: {
+              "Content-Type": "application/octet-stream",
+              "Transfer-Encoding": "chunked",
+            },
+          },
+          () => {
+            /* keep open until we destroy */
+          },
+        );
+        req.on("error", reject);
+        req.write("x");
+        req.on("socket", () => {
+          // Give the server a tick to increment the connection map
+          setImmediate(() => resolve(req));
+        });
+      });
+
+    const held1 = await holdUpload();
+    const held2 = await holdUpload();
+
+    const third = await new Promise<{ status: number; body: string }>(
+      (resolve, reject) => {
+        const req = http.request(
+          {
+            hostname: "127.0.0.1",
+            port,
+            path: "/api/upload",
+            method: "POST",
+            headers: {
+              "Content-Type": "application/octet-stream",
+              "Content-Length": "1",
+            },
+          },
+          (res) => {
+            const chunks: Buffer[] = [];
+            res.on("data", (c) => chunks.push(Buffer.from(c)));
+            res.on("end", () =>
+              resolve({
+                status: res.statusCode ?? 0,
+                body: Buffer.concat(chunks).toString("utf8"),
+              }),
+            );
+          },
+        );
+        req.on("error", reject);
+        req.end("y");
+      },
+    );
+
+    expect(third.status).toBe(429);
+    expect(third.body).toMatch(/concurrent upload streams/i);
+
+    held1.destroy();
+    held2.destroy();
+  });
 });
