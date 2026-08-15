@@ -117,6 +117,15 @@ describe("createRateLimiter", () => {
     expect(limiter.isLimited("ip", 0)).toBe(false);
     expect(limiter.isLimited("ip", 1)).toBe(true);
     limiter.reset();
+    expect(limiter.getTrackedIpCount()).toBe(0);
     expect(limiter.isLimited("ip", 2)).toBe(false);
+  });
+
+  it("drops the IP key after the sliding window is empty", () => {
+    const limiter = createRateLimiter(2, 1_000);
+    expect(limiter.isLimited("gone", 0)).toBe(false);
+    expect(limiter.getTrackedIpCount()).toBe(1);
+    expect(limiter.getRequestCount("gone", 1_001)).toBe(0);
+    expect(limiter.getTrackedIpCount()).toBe(0);
   });
 });

@@ -63,6 +63,8 @@ export type RateLimiter = {
   reset: () => void;
   /** Count of requests still inside the sliding window. */
   getRequestCount: (ip: string, now?: number) => number;
+  /** Number of IP keys currently stored (idle keys are removed on prune). */
+  getTrackedIpCount: () => number;
 };
 
 export function createRateLimiter(
@@ -75,6 +77,11 @@ export function createRateLimiter(
     const timestamps = (apiRequestLog.get(ip) || []).filter(
       (t) => now - t < windowMs,
     );
+    if (timestamps.length === 0) {
+      apiRequestLog.delete(ip);
+    } else {
+      apiRequestLog.set(ip, timestamps);
+    }
     return timestamps;
   };
 
@@ -82,7 +89,6 @@ export function createRateLimiter(
     isLimited(ip: string, now: number = Date.now()): boolean {
       const timestamps = prune(ip, now);
       if (timestamps.length >= maxRequests) {
-        apiRequestLog.set(ip, timestamps);
         return true;
       }
       timestamps.push(now);
@@ -94,6 +100,9 @@ export function createRateLimiter(
     },
     getRequestCount(ip: string, now: number = Date.now()): number {
       return prune(ip, now).length;
+    },
+    getTrackedIpCount(): number {
+      return apiRequestLog.size;
     },
   };
 }
