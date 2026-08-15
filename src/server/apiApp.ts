@@ -19,6 +19,20 @@ export const DOWNLOAD_STREAM_MAX_MS = 30_000;
 export const MAX_UPLOAD_BYTES = 2 * 1024 * 1024;
 export const GENERIC_UPLOAD_ERROR = "Upload failed. Please try again.";
 
+/** Applies to API and (via the same app) HTML. connect-src allows ISP/CDN/custom probes + Vite HMR. */
+export const CONTENT_SECURITY_POLICY = [
+  "default-src 'self'",
+  "script-src 'self'",
+  "style-src 'self' 'unsafe-inline'",
+  "img-src 'self' data:",
+  "font-src 'self'",
+  "connect-src 'self' https: http: ws: wss:",
+  "object-src 'none'",
+  "base-uri 'self'",
+  "form-action 'self'",
+  "frame-ancestors 'none'",
+].join("; ");
+
 /** Log the real error server-side; never send err.message to the client. */
 export function sendGenericUploadError(res: Response, err: unknown): void {
   console.error("[TarangStream] upload error:", err);
@@ -43,6 +57,7 @@ function securityHeaders(_req: Request, res: Response, next: NextFunction) {
   res.set("X-Content-Type-Options", "nosniff");
   res.set("X-Frame-Options", "DENY");
   res.set("Referrer-Policy", "strict-origin-when-cross-origin");
+  res.set("Content-Security-Policy", CONTENT_SECURITY_POLICY);
   next();
 }
 

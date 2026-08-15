@@ -3,6 +3,7 @@ import type { AddressInfo } from "node:net";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import request from "supertest";
 import {
+  CONTENT_SECURITY_POLICY,
   createApiApp,
   GENERIC_UPLOAD_ERROR,
   sendGenericUploadError,
@@ -73,6 +74,9 @@ describe("createApiApp routes", () => {
     expect(typeof res.body.time).toBe("string");
     expect(res.headers["x-content-type-options"]).toBe("nosniff");
     expect(res.headers["x-frame-options"]).toBe("DENY");
+    expect(res.headers["content-security-policy"]).toBe(CONTENT_SECURITY_POLICY);
+    expect(res.headers["content-security-policy"]).toMatch(/default-src 'self'/);
+    expect(res.headers["content-security-policy"]).toMatch(/frame-ancestors 'none'/);
   });
 
   it("POST /api/upload accepts octet-stream within size limit", async () => {
