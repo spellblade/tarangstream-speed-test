@@ -19,6 +19,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+## [1.0.0] - 2026-08-16
+
+### Added
+
+- First stable release of TarangStream: progress UX, security hardening, and `PORT` / dotenv configuration
+
 ## [0.2.1] - 2026-08-16
 
 ### Added
@@ -113,8 +119,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Dark / light theme with instant theme toggle
 - Stability chart and About page (lazy-loaded)
 
-[Unreleased]: https://github.com/spellblade/tarangstream-speed-test/compare/v0.2.1...HEAD
-[0.2.1]: https://github.com/spellblade/tarangstream-speed-test/releases/tag/v0.2.1
+[Unreleased]: https://github.com/spellblade/tarangstream-speed-test/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/spellblade/tarangstream-speed-test/releases/tag/v1.0.0
+[0.2.1]: https://github.com/spellblade/tarangstream-speed-test/compare/v0.2.1...v1.0.0
 [0.2.0]: https://github.com/spellblade/tarangstream-speed-test/compare/v0.2.0...v0.2.1
 [0.1.3]: https://github.com/spellblade/tarangstream-speed-test/compare/v0.1.3...v0.2.0
 [0.1.2]: https://github.com/spellblade/tarangstream-speed-test/compare/v0.1.2...v0.1.3

@@ -1,6 +1,6 @@
 # TarangStream documentation
 
-**Version:** see [VERSION](../VERSION) (currently **0.2.1**).
+**Version:** see [VERSION](../VERSION) (currently **1.0.0**).
 
 TarangStream is a full-stack browser network diagnostics app: download and upload speed, latency, jitter, and related telemetry, built with **React**, **TypeScript**, **Vite**, and **Express**.
 
