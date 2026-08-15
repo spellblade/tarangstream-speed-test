@@ -14,18 +14,44 @@ export type ClientIpRequest = {
   };
 };
 
-/**
- * Prefer the first X-Forwarded-For hop when present; otherwise socket address.
- * Callers that sit behind untrusted proxies should only enable XFF when proxy trust is configured.
- */
-export function getClientIp(req: ClientIpRequest): string {
-  const forwarded = req.headers["x-forwarded-for"];
+export type GetClientIpOptions = {
+  /** When true, use the first X-Forwarded-For hop. Default: env TRUST_PROXY. */
+  trustProxy?: boolean;
+};
+
+/** True when TRUST_PROXY is 1 / true / yes (case-insensitive). */
+export function isTrustProxyEnabled(
+  env: Record<string, string | undefined> = process.env,
+): boolean {
+  const raw = (env.TRUST_PROXY ?? "").trim().toLowerCase();
+  return raw === "1" || raw === "true" || raw === "yes";
+}
+
+function firstForwardedHop(
+  forwarded: string | string[] | undefined,
+): string | undefined {
   if (typeof forwarded === "string" && forwarded.length > 0) {
     return forwarded.split(",")[0].trim();
   }
   if (Array.isArray(forwarded) && forwarded.length > 0) {
     const first = String(forwarded[0] ?? "");
     if (first.length > 0) return first.split(",")[0].trim();
+  }
+  return undefined;
+}
+
+/**
+ * Client IP for rate limits and connection caps.
+ * X-Forwarded-For is used only when trustProxy is enabled (TRUST_PROXY env or option).
+ */
+export function getClientIp(
+  req: ClientIpRequest,
+  options: GetClientIpOptions = {},
+): string {
+  const trustProxy = options.trustProxy ?? isTrustProxyEnabled();
+  if (trustProxy) {
+    const hop = firstForwardedHop(req.headers["x-forwarded-for"]);
+    if (hop) return hop;
   }
   return req.socket.remoteAddress || "unknown";
 }
@@ -37,6 +63,8 @@ export type RateLimiter = {
   reset: () => void;
   /** Count of requests still inside the sliding window. */
   getRequestCount: (ip: string, now?: number) => number;
+  /** Number of IP keys currently stored (idle keys are removed on prune). */
+  getTrackedIpCount: () => number;
 };
 
 export function createRateLimiter(
@@ -49,6 +77,11 @@ export function createRateLimiter(
     const timestamps = (apiRequestLog.get(ip) || []).filter(
       (t) => now - t < windowMs,
     );
+    if (timestamps.length === 0) {
+      apiRequestLog.delete(ip);
+    } else {
+      apiRequestLog.set(ip, timestamps);
+    }
     return timestamps;
   };
 
@@ -56,7 +89,6 @@ export function createRateLimiter(
     isLimited(ip: string, now: number = Date.now()): boolean {
       const timestamps = prune(ip, now);
       if (timestamps.length >= maxRequests) {
-        apiRequestLog.set(ip, timestamps);
         return true;
       }
       timestamps.push(now);
@@ -68,6 +100,9 @@ export function createRateLimiter(
     },
     getRequestCount(ip: string, now: number = Date.now()): number {
       return prune(ip, now).length;
+    },
+    getTrackedIpCount(): number {
+      return apiRequestLog.size;
     },
   };
 }

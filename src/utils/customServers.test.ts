@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { sanitizeCustomServers } from "./customServers";
+import { sanitizeCustomServers, sanitizeServerForUse } from "./customServers";
 
 describe("sanitizeCustomServers", () => {
   it("returns empty for non-arrays", () => {
@@ -90,5 +90,33 @@ describe("sanitizeCustomServers", () => {
     expect(
       sanitizeCustomServers([null, "x", { name: "A", location: "B" }]),
     ).toHaveLength(1);
+  });
+});
+
+describe("sanitizeServerForUse", () => {
+  it("leaves a server without a URL unchanged", () => {
+    const srv = { id: "oregon", name: "Oregon", location: "US" };
+    expect(sanitizeServerForUse(srv)).toBe(srv);
+  });
+
+  it("keeps and normalizes a valid public URL", () => {
+    const out = sanitizeServerForUse({
+      id: "c",
+      name: "C",
+      location: "L",
+      url: "example.com/probe",
+    });
+    expect(out.url).toMatch(/^https:\/\/example\.com\/probe\/?$/);
+  });
+
+  it("strips a blocked or private probe URL", () => {
+    const out = sanitizeServerForUse({
+      id: "c",
+      name: "C",
+      location: "L",
+      url: "http://127.0.0.1:3000",
+    });
+    expect(out.url).toBeUndefined();
+    expect(out.id).toBe("c");
   });
 });

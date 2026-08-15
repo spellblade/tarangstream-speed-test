@@ -15,13 +15,8 @@ import {
   HistoryEntry,
   ServerOption,
 } from "./types";
-
-// Prod (real /api) implementation
 import * as prodSpeed from "./utils/speedTest";
-// Dedicated localhost / testing overrides (ALL localhost-specific code lives here)
 import * as localSpeed from "./utils/speedTest.local";
-
-// Shared non-runner utilities (always safe to pull from prod)
 import {
   measurePing,
   fetchIspDetails,
@@ -31,13 +26,29 @@ import {
 } from "./utils/speedTest";
 import { sanitizeHistoryEntries } from "./utils/historySanitize";
 import { validatePingHostUrl } from "./utils/urlValidation";
-import { sanitizeCustomServers } from "./utils/customServers";
+import {
+  sanitizeCustomServers,
+  sanitizeServerForUse,
+} from "./utils/customServers";
 import { buildHistoryCsv } from "./utils/csv";
+import {
+  PROGRESS_COMPLETE,
+  applyDialColdStart,
+  mapPhaseProgress,
+} from "./utils/progressMap";
+import { waitForTimeout } from "./utils/abortWait";
+import {
+  blendPacketLoss,
+  pickPreferredSpeed,
+  type SmoothingMethod,
+} from "./utils/smoothing";
+import {
+  BASE_HISTORY,
+  DEFAULT_SERVER_OPTIONS,
+  POPULAR_CITIES,
+} from "./data/appDefaults";
 import Gauge from "./components/Gauge";
 import StatsCard from "./components/StatsCard";
-
-const StabilityChart = lazy(() => import("./components/StabilityChart"));
-const AboutPage = lazy(() => import("./components/AboutPage"));
 import {
   Activity,
   History,
@@ -68,143 +79,8 @@ import {
   Download,
 } from "lucide-react";
 
-// Seeding realistic historical logs so the stability graph starts with rich data,
-// while letting the application persist all subsequent test cycles.
-const BASE_HISTORY: HistoryEntry[] = [
-  {
-    id: "seed-1",
-    timestamp: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
-    download: 342.5,
-    upload: 182.1,
-    ping: 18,
-    jitter: 3,
-    isp: "Gigabit Fiber Corp",
-    server: "Optimal Automatic",
-  },
-  {
-    id: "seed-2",
-    timestamp: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-    download: 295.1,
-    upload: 154.2,
-    ping: 24,
-    jitter: 5,
-    isp: "Gigabit Fiber Corp",
-    server: "Optimal Automatic",
-  },
-  {
-    id: "seed-3",
-    timestamp: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
-    download: 388.9,
-    upload: 210.5,
-    ping: 16,
-    jitter: 2,
-    isp: "Gigabit Fiber Corp",
-    server: "Optimal Automatic",
-  },
-  {
-    id: "seed-4",
-    timestamp: new Date(Date.now() - 12 * 60 * 60 * 1000).toISOString(),
-    download: 412.0,
-    upload: 220.8,
-    ping: 15,
-    jitter: 2,
-    isp: "Gigabit Fiber Corp",
-    server: "Optimal Automatic",
-  },
-  {
-    id: "seed-5",
-    timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-    download: 165.4, // represent peak-hour congestion dip
-    upload: 82.0,
-    ping: 32,
-    jitter: 9,
-    isp: "Gigabit Fiber Corp",
-    server: "Optimal Automatic",
-  },
-];
-
-const DEFAULT_SERVER_OPTIONS: ServerOption[] = [
-  {
-    id: "optimal",
-    name: "Automatic Optimal Node",
-    location: "Lowest Latency Route",
-  },
-  {
-    id: "oregon",
-    name: "Cloud Provider (US-West)",
-    location: "Oregon, USA",
-    lat: 45.8283,
-    lon: -120.3184,
-  },
-  {
-    id: "virginia",
-    name: "Cloud Provider (US-East)",
-    location: "Virginia, USA",
-    lat: 37.4316,
-    lon: -78.6569,
-  },
-  {
-    id: "frankfurt",
-    name: "High-Speed CDN Node",
-    location: "Frankfurt, GER",
-    lat: 50.1109,
-    lon: 8.6821,
-  },
-  {
-    id: "london",
-    name: "Core Gateway (UK-West)",
-    location: "London, GBR",
-    lat: 51.5074,
-    lon: -0.1278,
-  },
-  {
-    id: "singapore",
-    name: "Pacific Transit Point",
-    location: "Singapore, SGP",
-    lat: 1.3521,
-    lon: 103.8198,
-  },
-  {
-    id: "tokyo",
-    name: "Asia Pacific Edge",
-    location: "Tokyo, JPN",
-    lat: 35.6762,
-    lon: 139.6503,
-  },
-  {
-    id: "sydney",
-    name: "Oceania Backbone",
-    location: "Sydney, AUS",
-    lat: -33.8688,
-    lon: 151.2093,
-  },
-  {
-    id: "saopaulo",
-    name: "South America Hub",
-    location: "São Paulo, BRA",
-    lat: -23.5505,
-    lon: -46.6333,
-  },
-  {
-    id: "mumbai",
-    name: "South Asia Core",
-    location: "Mumbai, IND",
-    lat: 19.076,
-    lon: 72.8777,
-  },
-];
-
-const POPULAR_CITIES = [
-  { name: "New York, USA", lat: 40.7128, lon: -74.006 },
-  { name: "Los Angeles, USA", lat: 34.0522, lon: -118.2437 },
-  { name: "London, UK", lat: 51.5074, lon: -0.1278 },
-  { name: "Paris, France", lat: 48.8566, lon: 2.3522 },
-  { name: "Tokyo, Japan", lat: 35.6762, lon: 139.6503 },
-  { name: "Sydney, Australia", lat: -33.8688, lon: 151.2093 },
-  { name: "Mumbai, India", lat: 19.076, lon: 72.8777 },
-  { name: "Singapore", lat: 1.3521, lon: 103.8198 },
-  { name: "Cape Town, S. Africa", lat: -33.9249, lon: 18.4241 },
-];
+const StabilityChart = lazy(() => import("./components/StabilityChart"));
+const AboutPage = lazy(() => import("./components/AboutPage"));
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<
@@ -299,15 +175,19 @@ export default function App() {
   const [liveWMA, setLiveWMA] = useState<number>(0);
   const [livePacketLoss, setLivePacketLoss] = useState<number>(0);
   const [liveStreams, setLiveStreams] = useState<number>(1);
-  const [smoothingMethod, setSmoothingMethod] = useState<
-    "EMA" | "WMA" | "Hybrid"
-  >("Hybrid");
+  const [smoothingMethod, setSmoothingMethod] =
+    useState<SmoothingMethod>("Hybrid");
 
   // Create speeds ref to avoid stale closure issues in timers/intervals
   const speedsRef = useRef(speeds);
   useEffect(() => {
     speedsRef.current = speeds;
   }, [speeds]);
+
+  const peakSpeedsRef = useRef(peakSpeeds);
+  useEffect(() => {
+    peakSpeedsRef.current = peakSpeeds;
+  }, [peakSpeeds]);
 
   // ISP and Servers
   const [ispInfo, setIspInfo] = useState<IspInfo | null>(null);
@@ -531,6 +411,9 @@ export default function App() {
   // Abort controller and cancellation tracking for speed tests
   const activeTestControllerRef = useRef<AbortController | null>(null);
   const isInterruptedRef = useRef<boolean>(false);
+  /** performance.now() when download/upload phase actually begins (dial cold-start). */
+  const downloadPhaseStartedAtRef = useRef<number | null>(null);
+  const uploadPhaseStartedAtRef = useRef<number | null>(null);
 
   const interruptSpeedTest = () => {
     isInterruptedRef.current = true;
@@ -621,10 +504,14 @@ export default function App() {
     // Reset speeds
     setSpeeds({ download: 0, upload: 0, ping: 0, jitter: 0 });
     setPeakSpeeds({ download: 0, upload: 0 });
-    setOverallProgress(2);
+    downloadPhaseStartedAtRef.current = null;
+    uploadPhaseStartedAtRef.current = null;
+    setOverallProgress(mapPhaseProgress("latency", 0));
     setTestPhase("latency");
     setPacketsSent(0);
     setLivePps(0);
+    setLiveEMA(0);
+    setLiveWMA(0);
 
     try {
       // 1. Resolve testing node (find closest server if optimal is selected)
@@ -714,6 +601,25 @@ export default function App() {
 
       if (isInterruptedRef.current || signal.aborted) return;
 
+      // Re-validate probe URL at use time (in-memory / stale custom servers)
+      const probeSafe = sanitizeServerForUse(targetServer);
+      if (probeSafe.url !== targetServer.url) {
+        targetServer = probeSafe;
+        if (selectedServer.id === probeSafe.id) {
+          setSelectedServer(probeSafe);
+        }
+        setCustomServers((prev) => {
+          const updated = prev.map((s) =>
+            s.id === probeSafe.id ? { ...s, url: probeSafe.url } : s,
+          );
+          localStorage.setItem(
+            "custom_speedtest_servers",
+            JSON.stringify(updated),
+          );
+          return updated;
+        });
+      }
+
       // Step 1: Measure authentic, real hardware physical ping & jitter to our target server
       const pingResults = await measurePing(
         (sampleLatency, index) => {
@@ -726,9 +632,8 @@ export default function App() {
           const pps = livePing > 0 ? 1000 / livePing : 0;
           setLivePps(parseFloat(pps.toFixed(1)));
 
-          // Smoothly advance overall progress from 2% to 15% during handshake phase
-          const subProgress = 2 + Math.round((packetNum / 10) * 13);
-          setOverallProgress(subProgress);
+          // Latency segment: equal third (0–33%)
+          setOverallProgress(mapPhaseProgress("latency", packetNum / 10));
 
           // Instantly tick current latency ping display
           setSpeeds((prev) => ({
@@ -751,19 +656,18 @@ export default function App() {
         ping: Math.round(basePing),
         jitter: Math.round(baseJitter),
       }));
-      setOverallProgress(15);
+      setOverallProgress(mapPhaseProgress("latency", 1));
 
       // Give a short pause to read latency phase before jumping indicators
-      await new Promise((resolve, reject) => {
-        const timeout = setTimeout(resolve, 800);
-        signal.addEventListener("abort", () => {
-          clearTimeout(timeout);
-          reject(new DOMException("Aborted", "AbortError"));
-        });
-      });
+      await waitForTimeout(800, signal);
 
       if (isInterruptedRef.current || signal.aborted) return;
+      // Flip phase only when download is about to start
       setTestPhase("download");
+      downloadPhaseStartedAtRef.current = performance.now();
+      setSpeeds((prev) => ({ ...prev, download: 0 }));
+      setLiveEMA(0);
+      setLiveWMA(0);
 
       // Step 2: Run Download Pipeline
       let baselineDownloadTarget = 450;
@@ -792,25 +696,24 @@ export default function App() {
           estimatedPacketLoss: number,
         ) => {
           if (isInterruptedRef.current || signal.aborted) return;
-          // Map 0-100% test progress to 15-55% overall progress
-          const overallProg = 15 + Math.round((progress / 100) * 40);
-          setOverallProgress(overallProg);
+          // Download segment: equal third (33–66%)
+          setOverallProgress(mapPhaseProgress("download", progress / 100));
 
           setLiveEMA(liveEMAVal);
           setLiveWMA(liveWMAVal);
           setLivePacketLoss(estimatedPacketLoss);
           setLiveStreams(activeStreams);
 
-          const prefSpeed =
-            smoothingMethod === "EMA"
-              ? liveEMAVal
-              : smoothingMethod === "WMA"
-                ? liveWMAVal
-                : parseFloat(((liveEMAVal + liveWMAVal) / 2).toFixed(2));
+          const prefSpeed = pickPreferredSpeed(smoothingMethod, liveEMAVal, liveWMAVal);
+
+          const dialSpeed = applyDialColdStart(
+            downloadPhaseStartedAtRef.current,
+            prefSpeed,
+          );
 
           setSpeeds((prev) => ({
             ...prev,
-            download: prefSpeed,
+            download: dialSpeed,
             packetLoss: estimatedPacketLoss,
             maxStreams: Math.max(prev.maxStreams || 1, activeStreams),
           }));
@@ -836,17 +739,11 @@ export default function App() {
 
         if (isInterruptedRef.current || signal.aborted) return;
 
-        const finalPrefDownload =
-          smoothingMethod === "EMA"
-            ? finalRealDownload.emaSpeed
-            : smoothingMethod === "WMA"
-              ? finalRealDownload.wmaSpeed
-              : parseFloat(
-                  (
-                    (finalRealDownload.emaSpeed + finalRealDownload.wmaSpeed) /
-                    2
-                  ).toFixed(2),
-                );
+        const finalPrefDownload = pickPreferredSpeed(
+          smoothingMethod,
+          finalRealDownload.emaSpeed,
+          finalRealDownload.wmaSpeed,
+        );
 
         setSpeeds((prev) => ({
           ...prev,
@@ -862,15 +759,9 @@ export default function App() {
           download: Math.max(prev.download, finalPrefDownload),
         }));
 
-        // Brief transition gap
-        setOverallProgress(55);
-        await new Promise((resolve, reject) => {
-          const timeout = setTimeout(resolve, 500);
-          signal.addEventListener("abort", () => {
-            clearTimeout(timeout);
-            reject(new DOMException("Aborted", "AbortError"));
-          });
-        });
+        // Hold end of download segment; phase stays "download" until upload starts
+        setOverallProgress(mapPhaseProgress("download", 1));
+        await waitForTimeout(500, signal);
 
         if (isInterruptedRef.current || signal.aborted) return;
         await runUploadPhase(
@@ -886,7 +777,6 @@ export default function App() {
           signal.aborted ||
           err.name === "AbortError"
         ) {
-          console.log("[Download Test] Aborted by user action.");
           return;
         }
 
@@ -899,6 +789,7 @@ export default function App() {
         const dlDurationTicks = 100;
         let lastSimEMA = 0;
         const simSamples: number[] = [];
+        downloadPhaseStartedAtRef.current = performance.now();
 
         testIntervalRef.current = window.setInterval(() => {
           if (isInterruptedRef.current || signal.aborted) {
@@ -907,8 +798,7 @@ export default function App() {
           }
           dlTicks++;
           const currentPercent = dlTicks / dlDurationTicks;
-          const currentProgressValue = 15 + Math.round(currentPercent * 40);
-          setOverallProgress(currentProgressValue);
+          setOverallProgress(mapPhaseProgress("download", currentPercent));
 
           // Compute actual current flow speed from simulated slow-start waves
           const speed = getSpeedCurveValue(
@@ -943,17 +833,15 @@ export default function App() {
           setLivePacketLoss(simLoss);
           setLiveStreams(simStreams);
 
-          const prefSpeed =
-            smoothingMethod === "EMA"
-              ? simEMA
-              : smoothingMethod === "WMA"
-                ? simWMA
-                : (simEMA + simWMA) / 2;
-          const finalPref = parseFloat(prefSpeed.toFixed(2));
+          const finalPref = pickPreferredSpeed(smoothingMethod, simEMA, simWMA);
+          const dialSpeed = applyDialColdStart(
+            downloadPhaseStartedAtRef.current,
+            finalPref,
+          );
 
           setSpeeds((prev) => ({
             ...prev,
-            download: finalPref,
+            download: dialSpeed,
             packetLoss: simLoss,
             maxStreams: Math.max(prev.maxStreams || 1, simStreams),
           }));
@@ -965,8 +853,7 @@ export default function App() {
           if (dlTicks >= dlDurationTicks) {
             if (testIntervalRef.current) clearInterval(testIntervalRef.current);
 
-            // Brief transition gap
-            setOverallProgress(55);
+            setOverallProgress(mapPhaseProgress("download", 1));
             setTimeout(() => {
               if (isInterruptedRef.current || signal.aborted) return;
               runUploadPhase(
@@ -986,7 +873,7 @@ export default function App() {
         isInterruptedRef.current ||
         signal.aborted
       ) {
-        console.log("[Speed Test] Routine aborted safely.");
+        // aborted by user
       } else {
         console.error("[Speed Test Error]", err);
         setTestPhase("idle");
@@ -1002,7 +889,13 @@ export default function App() {
     signal: AbortSignal,
   ) => {
     if (isInterruptedRef.current || signal.aborted) return;
+    // Phase label flips only when upload actually begins
     setTestPhase("upload");
+    uploadPhaseStartedAtRef.current = performance.now();
+    setSpeeds((prev) => ({ ...prev, upload: 0 }));
+    setLiveEMA(0);
+    setLiveWMA(0);
+    setOverallProgress(mapPhaseProgress("upload", 0));
 
     // Step 3: Run Upload Pipeline
     let baselineUploadTarget = 150;
@@ -1020,125 +913,72 @@ export default function App() {
 
     try {
       if (isInterruptedRef.current || signal.aborted) return;
-      // Run high-fidelity real network upload test
-      // On localhost we use the pure simulation exported from speedTest.local.ts (realistic numbers)
-      let finalRealUpload;
-      if (isLocal) {
-        finalRealUpload = await localSpeed.runLocalUploadTest(
-          6000,
-          (
-            liveEMAVal,
-            liveWMAVal,
-            progress,
-            activeStreams,
-            estimatedPacketLoss,
-          ) => {
-            if (isInterruptedRef.current || signal.aborted) return;
-            const overallProg = 55 + Math.round((progress / 100) * 40);
-            setOverallProgress(overallProg);
+      const onUploadProgress = (
+        liveEMAVal: number,
+        liveWMAVal: number,
+        progress: number,
+        activeStreams: number,
+        estimatedPacketLoss: number,
+      ) => {
+        if (isInterruptedRef.current || signal.aborted) return;
+        setOverallProgress(mapPhaseProgress("upload", progress / 100));
 
-            setLiveEMA(liveEMAVal);
-            setLiveWMA(liveWMAVal);
-            setLivePacketLoss(estimatedPacketLoss);
-            setLiveStreams(activeStreams);
+        setLiveEMA(liveEMAVal);
+        setLiveWMA(liveWMAVal);
+        setLivePacketLoss(estimatedPacketLoss);
+        setLiveStreams(activeStreams);
 
-            const prefSpeed =
-              smoothingMethod === "EMA"
-                ? liveEMAVal
-                : smoothingMethod === "WMA"
-                  ? liveWMAVal
-                  : parseFloat(((liveEMAVal + liveWMAVal) / 2).toFixed(2));
-
-            setSpeeds((prev) => ({
-              ...prev,
-              upload: prefSpeed,
-              packetLoss: parseFloat(
-                (
-                  (prev.packetLoss || 0) * 0.5 +
-                  estimatedPacketLoss * 0.5
-                ).toFixed(2),
-              ),
-              maxStreams: Math.max(prev.maxStreams || 1, activeStreams),
-            }));
-            setPeakSpeeds((prev) => ({
-              ...prev,
-              upload: Math.max(prev.upload, prefSpeed),
-            }));
-            setLivePps(activeStreams);
-          },
-          signal,
-          finalUploadTarget,
-          jitter,
+        const prefSpeed = pickPreferredSpeed(
+          smoothingMethod,
+          liveEMAVal,
+          liveWMAVal,
         );
-      } else {
-        finalRealUpload = await prodSpeed.runRealUploadTest(
-          6000,
-          (
-            liveEMAVal,
-            liveWMAVal,
-            progress,
-            activeStreams,
-            estimatedPacketLoss,
-          ) => {
-            if (isInterruptedRef.current || signal.aborted) return;
-            const overallProg = 55 + Math.round((progress / 100) * 40);
-            setOverallProgress(overallProg);
-
-            setLiveEMA(liveEMAVal);
-            setLiveWMA(liveWMAVal);
-            setLivePacketLoss(estimatedPacketLoss);
-            setLiveStreams(activeStreams);
-
-            const prefSpeed =
-              smoothingMethod === "EMA"
-                ? liveEMAVal
-                : smoothingMethod === "WMA"
-                  ? liveWMAVal
-                  : parseFloat(((liveEMAVal + liveWMAVal) / 2).toFixed(2));
-
-            setSpeeds((prev) => ({
-              ...prev,
-              upload: prefSpeed,
-              packetLoss: parseFloat(
-                (
-                  (prev.packetLoss || 0) * 0.5 +
-                  estimatedPacketLoss * 0.5
-                ).toFixed(2),
-              ),
-              maxStreams: Math.max(prev.maxStreams || 1, activeStreams),
-            }));
-            setPeakSpeeds((prev) => ({
-              ...prev,
-              upload: Math.max(prev.upload, prefSpeed),
-            }));
-            setLivePps(activeStreams);
-          },
-          signal,
+        const dialSpeed = applyDialColdStart(
+          uploadPhaseStartedAtRef.current,
+          prefSpeed,
         );
-      }
+
+        setSpeeds((prev) => ({
+          ...prev,
+          upload: dialSpeed,
+          packetLoss: blendPacketLoss(prev.packetLoss, estimatedPacketLoss),
+          maxStreams: Math.max(prev.maxStreams || 1, activeStreams),
+        }));
+        setPeakSpeeds((prev) => ({
+          ...prev,
+          upload: Math.max(prev.upload, prefSpeed),
+        }));
+        setLivePps(activeStreams);
+      };
+
+      const finalRealUpload = isLocal
+        ? await localSpeed.runLocalUploadTest(
+            6000,
+            onUploadProgress,
+            signal,
+            finalUploadTarget,
+            jitter,
+          )
+        : await prodSpeed.runRealUploadTest(
+            6000,
+            onUploadProgress,
+            signal,
+          );
 
       if (isInterruptedRef.current || signal.aborted) return;
 
-      const finalPrefUpload =
-        smoothingMethod === "EMA"
-          ? finalRealUpload.emaSpeed
-          : smoothingMethod === "WMA"
-            ? finalRealUpload.wmaSpeed
-            : parseFloat(
-                (
-                  (finalRealUpload.emaSpeed + finalRealUpload.wmaSpeed) /
-                  2
-                ).toFixed(2),
-              );
+      const finalPrefUpload = pickPreferredSpeed(
+        smoothingMethod,
+        finalRealUpload.emaSpeed,
+        finalRealUpload.wmaSpeed,
+      );
 
       setSpeeds((prev) => ({
         ...prev,
         upload: finalPrefUpload,
-        packetLoss: parseFloat(
-          (
-            (prev.packetLoss || 0) * 0.5 +
-            finalRealUpload.estimatedPacketLoss * 0.5
-          ).toFixed(2),
+        packetLoss: blendPacketLoss(
+          prev.packetLoss,
+          finalRealUpload.estimatedPacketLoss,
         ),
         maxStreams: Math.max(prev.maxStreams || 1, finalRealUpload.maxStreams),
       }));
@@ -1161,7 +1001,6 @@ export default function App() {
         signal.aborted ||
         err.name === "AbortError"
       ) {
-        console.log("[Upload Test] Aborted by user action.");
         return;
       }
 
@@ -1175,6 +1014,7 @@ export default function App() {
       let lastSimEMA = 0;
       const simSamples: number[] = [];
 
+      uploadPhaseStartedAtRef.current = performance.now();
       testIntervalRef.current = window.setInterval(() => {
         if (isInterruptedRef.current || signal.aborted) {
           if (testIntervalRef.current) clearInterval(testIntervalRef.current);
@@ -1182,8 +1022,7 @@ export default function App() {
         }
         ulTicks++;
         const currentPercent = ulTicks / ulDurationTicks;
-        const currentProgressValue = 55 + Math.round(currentPercent * 40);
-        setOverallProgress(currentProgressValue);
+        setOverallProgress(mapPhaseProgress("upload", currentPercent));
 
         // Compute visual speed fluctuation using flow curves
         const speed = getSpeedCurveValue(
@@ -1214,20 +1053,16 @@ export default function App() {
         setLivePacketLoss(simLoss);
         setLiveStreams(simStreams);
 
-        const prefSpeed =
-          smoothingMethod === "EMA"
-            ? simEMA
-            : smoothingMethod === "WMA"
-              ? simWMA
-              : (simEMA + simWMA) / 2;
-        const finalPref = parseFloat(prefSpeed.toFixed(2));
+        const finalPref = pickPreferredSpeed(smoothingMethod, simEMA, simWMA);
+        const dialSpeed = applyDialColdStart(
+          uploadPhaseStartedAtRef.current,
+          finalPref,
+        );
 
         setSpeeds((prev) => ({
           ...prev,
-          upload: finalPref,
-          packetLoss: parseFloat(
-            ((prev.packetLoss || 0) * 0.5 + simLoss * 0.5).toFixed(2),
-          ),
+          upload: dialSpeed,
+          packetLoss: blendPacketLoss(prev.packetLoss, simLoss),
           maxStreams: Math.max(prev.maxStreams || 1, simStreams),
         }));
         setPeakSpeeds((prev) => ({
@@ -1260,11 +1095,15 @@ export default function App() {
     targetServer: ServerOption,
   ) => {
     if (isInterruptedRef.current) return;
-    setOverallProgress(100);
+    setOverallProgress(PROGRESS_COMPLETE);
     setTestPhase("complete");
 
     // Capture complete results & add directly to history
-    const finalDownload = speedsRef.current.download;
+    // Prefer peak download so cold-start zeros do not wipe the result
+    const finalDownload = Math.max(
+      speedsRef.current.download,
+      peakSpeedsRef.current.download,
+    );
 
     const serverDisplayName =
       selectedServer.id === "optimal"

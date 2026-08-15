@@ -1,8 +1,15 @@
 import http from "node:http";
 import type { AddressInfo } from "node:net";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import request from "supertest";
-import { createApiApp } from "./apiApp";
+import {
+  CONTENT_SECURITY_POLICY,
+  CONTENT_SECURITY_POLICY_DEV,
+  createApiApp,
+  GENERIC_UPLOAD_ERROR,
+  resolveContentSecurityPolicy,
+  sendGenericUploadError,
+} from "./apiApp";
 import { createRateLimiter } from "../utils/rateLimit";
 
 describe("createApiApp routes", () => {
@@ -69,6 +76,32 @@ describe("createApiApp routes", () => {
     expect(typeof res.body.time).toBe("string");
     expect(res.headers["x-content-type-options"]).toBe("nosniff");
     expect(res.headers["x-frame-options"]).toBe("DENY");
+    expect(res.headers["content-security-policy"]).toBe(
+      resolveContentSecurityPolicy(),
+    );
+    expect(res.headers["content-security-policy"]).toMatch(/default-src 'self'/);
+    expect(res.headers["content-security-policy"]).toMatch(
+      /frame-ancestors 'none'/,
+    );
+  });
+
+  it("uses a looser script-src in development so Vite can load", async () => {
+    const res = await request(
+      app({ contentSecurityPolicy: CONTENT_SECURITY_POLICY_DEV }),
+    )
+      .get("/api/health")
+      .expect(200);
+    expect(res.headers["content-security-policy"]).toMatch(/unsafe-eval/);
+  });
+
+  it("uses strict script-src in production policy", async () => {
+    const res = await request(
+      app({ contentSecurityPolicy: CONTENT_SECURITY_POLICY }),
+    )
+      .get("/api/health")
+      .expect(200);
+    expect(res.headers["content-security-policy"]).toMatch(/script-src 'self'/);
+    expect(res.headers["content-security-policy"]).not.toMatch(/unsafe-eval/);
   });
 
   it("POST /api/upload accepts octet-stream within size limit", async () => {
@@ -175,5 +208,105 @@ describe("createApiApp routes", () => {
     held2.req.destroy();
     held1.res.destroy();
     held2.res.destroy();
+  });
+
+  it("returns 429 when concurrent upload streams exceed the per-IP cap", async () => {
+    const instance = app({
+      maxUploadConnections: 2,
+      rateLimiter: createRateLimiter(50, 60_000),
+    });
+    const { port } = await listen(instance);
+
+    const holdUpload = () =>
+      new Promise<http.ClientRequest>((resolve, reject) => {
+        const req = http.request(
+          {
+            hostname: "127.0.0.1",
+            port,
+            path: "/api/upload",
+            method: "POST",
+            headers: {
+              "Content-Type": "application/octet-stream",
+              "Transfer-Encoding": "chunked",
+            },
+          },
+          () => {
+            /* keep open until we destroy */
+          },
+        );
+        req.on("error", reject);
+        req.write("x");
+        req.on("socket", () => {
+          // Give the server a tick to increment the connection map
+          setImmediate(() => resolve(req));
+        });
+      });
+
+    const held1 = await holdUpload();
+    const held2 = await holdUpload();
+
+    const third = await new Promise<{ status: number; body: string }>(
+      (resolve, reject) => {
+        const req = http.request(
+          {
+            hostname: "127.0.0.1",
+            port,
+            path: "/api/upload",
+            method: "POST",
+            headers: {
+              "Content-Type": "application/octet-stream",
+              "Content-Length": "1",
+            },
+          },
+          (res) => {
+            const chunks: Buffer[] = [];
+            res.on("data", (c) => chunks.push(Buffer.from(c)));
+            res.on("end", () =>
+              resolve({
+                status: res.statusCode ?? 0,
+                body: Buffer.concat(chunks).toString("utf8"),
+              }),
+            );
+          },
+        );
+        req.on("error", reject);
+        req.end("y");
+      },
+    );
+
+    expect(third.status).toBe(429);
+    expect(third.body).toMatch(/concurrent upload streams/i);
+
+    held1.destroy();
+    held2.destroy();
+  });
+});
+
+describe("sendGenericUploadError", () => {
+  it("sends a generic 500 body and does not leak err.message", () => {
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const json = vi.fn();
+    const status = vi.fn().mockReturnValue({ json });
+    const res = { headersSent: false, status } as any;
+
+    sendGenericUploadError(res, new Error("secret-internal-detail"));
+
+    expect(status).toHaveBeenCalledWith(500);
+    expect(json).toHaveBeenCalledWith({ error: GENERIC_UPLOAD_ERROR });
+    expect(json.mock.calls[0][0].error).not.toContain("secret-internal-detail");
+    errorSpy.mockRestore();
+  });
+
+  it("does not write if headers were already sent", () => {
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const json = vi.fn();
+    const status = vi.fn().mockReturnValue({ json });
+    const res = { headersSent: true, status } as any;
+
+    sendGenericUploadError(res, new Error("late"));
+
+    expect(status).not.toHaveBeenCalled();
+    expect(json).not.toHaveBeenCalled();
+    errorSpy.mockRestore();
   });
 });

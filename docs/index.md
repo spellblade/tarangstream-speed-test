@@ -1,6 +1,6 @@
 # TarangStream documentation
 
-**Version:** see [VERSION](../VERSION) (currently **0.1.2**).
+**Version:** see [VERSION](../VERSION) (currently **0.2.1**).
 
 TarangStream is a full-stack browser network diagnostics app: download and upload speed, latency, jitter, and related telemetry, built with **React**, **TypeScript**, **Vite**, and **Express**.
 
@@ -10,6 +10,7 @@ TarangStream is a full-stack browser network diagnostics app: download and uploa
 |----------|------------|
 | End users / operators | [Usage](usage.md), [Setup](setup.md) |
 | Contributors | [Setup](setup.md), [Architecture](architecture.md), [Coding standards](coding-standards.md) |
+| Security / hardening checks | [Security hardening](security-hardening.md) |
 | Anyone interpreting results | [Measurement methodology](measurement-methodology.md) |
 
 ## Contents
@@ -21,6 +22,7 @@ TarangStream is a full-stack browser network diagnostics app: download and uploa
 | [Usage](usage.md) | Running tests, UI controls, history and export |
 | [Coding standards](coding-standards.md) | Conventions for this repository |
 | [Measurement methodology](measurement-methodology.md) | How metrics are computed and their limits |
+| [Security hardening](security-hardening.md) | Controls and step-by-step verification (TRUST_PROXY, later items) |
 
 ## Project metadata (repository root)
 
