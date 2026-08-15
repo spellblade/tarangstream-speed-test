@@ -1,11 +1,13 @@
+import "dotenv/config";
 import express from "express";
 import path from "path";
 import { createServer as createViteServer } from "vite";
 import { createApiApp } from "./src/server/apiApp";
+import { resolveListenPort } from "./src/utils/listenPort";
 
 async function startServer() {
   const app = createApiApp();
-  const PORT = 3000;
+  const PORT = resolveListenPort();
 
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({
@@ -13,9 +15,7 @@ async function startServer() {
       appType: "spa",
     });
     app.use(vite.middlewares);
-    console.log(
-      "[Vite] Running in development mode with HMR disabled on port 3000",
-    );
+    console.log(`[Vite] Running in development mode on port ${PORT}`);
   } else {
     const distPath = path.join(process.cwd(), "dist");
     app.use(express.static(distPath));

@@ -17,7 +17,7 @@ Enable **only** behind a reverse proxy that overwrites or appends `X-Forwarded-F
 
 `GET /api/health` is **not** rate-limited. Use **`POST /api/upload`** for the checks below.
 
-`dotenv` is **not** loaded in `server.ts` yet. Set `TRUST_PROXY` on the process (prefix the command or Codespaces env). A line in `.env` alone does nothing.
+`server.ts` loads `.env` via `dotenv`. You can set `TRUST_PROXY=true` in `.env` or on the command line (`TRUST_PROXY=true npm run dev`). Process env overrides the file.
 
 ### Verify in GitHub Codespaces (or any local terminal)
 
