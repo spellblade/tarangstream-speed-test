@@ -19,10 +19,8 @@ export const DOWNLOAD_STREAM_MAX_MS = 30_000;
 export const MAX_UPLOAD_BYTES = 2 * 1024 * 1024;
 export const GENERIC_UPLOAD_ERROR = "Upload failed. Please try again.";
 
-/** Applies to API and (via the same app) HTML. connect-src allows ISP/CDN/custom probes + Vite HMR. */
-export const CONTENT_SECURITY_POLICY = [
+const CSP_SHARED = [
   "default-src 'self'",
-  "script-src 'self'",
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data:",
   "font-src 'self'",
@@ -31,7 +29,30 @@ export const CONTENT_SECURITY_POLICY = [
   "base-uri 'self'",
   "form-action 'self'",
   "frame-ancestors 'none'",
+] as const;
+
+/** Production: scripts only from this origin. */
+export const CONTENT_SECURITY_POLICY = [
+  ...CSP_SHARED,
+  "script-src 'self'",
 ].join("; ");
+
+/**
+ * Development / test: Vite and React Refresh need inline + eval.
+ * Using production CSP on `npm run dev` blanks the UI (confirmed).
+ */
+export const CONTENT_SECURITY_POLICY_DEV = [
+  ...CSP_SHARED,
+  "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+].join("; ");
+
+export function resolveContentSecurityPolicy(
+  nodeEnv: string | undefined = process.env.NODE_ENV,
+): string {
+  return nodeEnv === "production"
+    ? CONTENT_SECURITY_POLICY
+    : CONTENT_SECURITY_POLICY_DEV;
+}
 
 /** Log the real error server-side; never send err.message to the client. */
 export function sendGenericUploadError(res: Response, err: unknown): void {
@@ -50,16 +71,9 @@ export type ApiAppOptions = {
   maxUploadBytes?: number;
   /** Honor X-Forwarded-For. Defaults to TRUST_PROXY env. */
   trustProxy?: boolean;
+  /** Override CSP. Default: production policy only when NODE_ENV=production. */
+  contentSecurityPolicy?: string;
 };
-
-function securityHeaders(_req: Request, res: Response, next: NextFunction) {
-  res.set("Cache-Control", "no-store, no-cache, must-revalidate, private");
-  res.set("X-Content-Type-Options", "nosniff");
-  res.set("X-Frame-Options", "DENY");
-  res.set("Referrer-Policy", "strict-origin-when-cross-origin");
-  res.set("Content-Security-Policy", CONTENT_SECURITY_POLICY);
-  next();
-}
 
 /**
  * Express app with TarangStream API routes only (no Vite / static UI).
@@ -74,6 +88,8 @@ export function createApiApp(options: ApiAppOptions = {}): Express {
     options.downloadStreamMaxMs ?? DOWNLOAD_STREAM_MAX_MS;
   const maxUploadBytes = options.maxUploadBytes ?? MAX_UPLOAD_BYTES;
   const trustProxy = options.trustProxy ?? isTrustProxyEnabled();
+  const contentSecurityPolicy =
+    options.contentSecurityPolicy ?? resolveContentSecurityPolicy();
 
   const downloadConnections = new Map<string, number>();
   const uploadConnections = new Map<string, number>();
@@ -85,7 +101,14 @@ export function createApiApp(options: ApiAppOptions = {}): Express {
     );
 
   const app = express();
-  app.use(securityHeaders);
+  app.use((_req: Request, res: Response, next: NextFunction) => {
+    res.set("Cache-Control", "no-store, no-cache, must-revalidate, private");
+    res.set("X-Content-Type-Options", "nosniff");
+    res.set("X-Frame-Options", "DENY");
+    res.set("Referrer-Policy", "strict-origin-when-cross-origin");
+    res.set("Content-Security-Policy", contentSecurityPolicy);
+    next();
+  });
 
   function apiRateLimit(req: Request, res: Response, next: NextFunction) {
     const ip = getClientIp(req, { trustProxy });

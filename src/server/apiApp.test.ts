@@ -4,8 +4,10 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import request from "supertest";
 import {
   CONTENT_SECURITY_POLICY,
+  CONTENT_SECURITY_POLICY_DEV,
   createApiApp,
   GENERIC_UPLOAD_ERROR,
+  resolveContentSecurityPolicy,
   sendGenericUploadError,
 } from "./apiApp";
 import { createRateLimiter } from "../utils/rateLimit";
@@ -74,9 +76,32 @@ describe("createApiApp routes", () => {
     expect(typeof res.body.time).toBe("string");
     expect(res.headers["x-content-type-options"]).toBe("nosniff");
     expect(res.headers["x-frame-options"]).toBe("DENY");
-    expect(res.headers["content-security-policy"]).toBe(CONTENT_SECURITY_POLICY);
+    expect(res.headers["content-security-policy"]).toBe(
+      resolveContentSecurityPolicy(),
+    );
     expect(res.headers["content-security-policy"]).toMatch(/default-src 'self'/);
-    expect(res.headers["content-security-policy"]).toMatch(/frame-ancestors 'none'/);
+    expect(res.headers["content-security-policy"]).toMatch(
+      /frame-ancestors 'none'/,
+    );
+  });
+
+  it("uses a looser script-src in development so Vite can load", async () => {
+    const res = await request(
+      app({ contentSecurityPolicy: CONTENT_SECURITY_POLICY_DEV }),
+    )
+      .get("/api/health")
+      .expect(200);
+    expect(res.headers["content-security-policy"]).toMatch(/unsafe-eval/);
+  });
+
+  it("uses strict script-src in production policy", async () => {
+    const res = await request(
+      app({ contentSecurityPolicy: CONTENT_SECURITY_POLICY }),
+    )
+      .get("/api/health")
+      .expect(200);
+    expect(res.headers["content-security-policy"]).toMatch(/script-src 'self'/);
+    expect(res.headers["content-security-policy"]).not.toMatch(/unsafe-eval/);
   });
 
   it("POST /api/upload accepts octet-stream within size limit", async () => {
