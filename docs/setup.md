@@ -53,13 +53,15 @@ Copy [`.env.example`](../.env.example) if you maintain a local `.env` (gitignore
 
 | Variable | Purpose |
 |----------|---------|
-| `PORT` | Documented as optional server port (default **3000**) |
+| `PORT` | Listen port (default **3000**). Must be digits 1–65535; invalid values fall back to 3000. |
 | `NODE_ENV` | `development` uses Vite middleware; `production` serves static `dist/` |
 | `TRUST_PROXY` | When `1`, `true`, or `yes`, honor `X-Forwarded-For` for rate limits and download caps. **Default off.** Enable only behind a trusted reverse proxy. |
 
-How to verify `TRUST_PROXY` (Codespaces or local): [Security hardening](security-hardening.md).
+`server.ts` loads [`.env`](../.env.example) via `dotenv` at startup. Process env still wins over the file.
 
-**Note:** As of 0.1.0, `server.ts` selects production vs development from `NODE_ENV` but the listen port is **hardcoded to 3000**. Treat `PORT` in `.env.example` as intended configuration until the server reads `process.env.PORT`. The `dotenv` package is listed in dependencies; ensure it is loaded if you rely on a `.env` file.
+How to verify `TRUST_PROXY`: [Security hardening](security-hardening.md).
+
+How to verify `PORT`: `npm test -- src/utils/listenPort.test.ts`, then `PORT=4000 npm run dev` and `curl -sI http://127.0.0.1:4000/api/health` (expect 200). Default `npm run dev` still uses 3000.
 
 ## Localhost vs deployed behavior
 
@@ -74,7 +76,7 @@ See [Architecture](architecture.md) and [Measurement methodology](measurement-me
 
 ### Port already in use
 
-Another process is bound to port 3000. Stop it or change the port in `server.ts` until env-based `PORT` is wired.
+Another process is bound to the listen port (default 3000). Stop it or start with a different port, e.g. `PORT=4000 npm run dev`.
 
 ### `tsc` / `npm` not found (WSL + Windows Node)
 
