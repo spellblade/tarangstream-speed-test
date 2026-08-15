@@ -176,6 +176,16 @@ npm test -- src/utils/customServers.test.ts
 
 Optional: put `http://127.0.0.1/` on a custom server in `localStorage` and reload — the `url` field should be gone. A full test should still show download **200** same-origin.
 
-## Later checks
+## AbortSignal listeners
 
-More procedures will be added here as further items land (abort listeners).
+Timed pauses during a run (latency/download gaps, ping spacing) use `waitForTimeout`. The abort listener is `{ once: true }` and is **removed when the timer completes**, so repeated tests do not stack listeners. Download/upload abort handlers also use `{ once: true }`.
+
+### Verify
+
+No running server required:
+
+```bash
+npm test -- src/utils/abortWait.test.ts
+```
+
+**Pass:** timer resolves; already-aborted and mid-wait abort reject with `AbortError`.

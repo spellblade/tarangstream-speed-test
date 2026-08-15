@@ -35,6 +35,7 @@ Working section for the security-hardening pass. Will become **0.2.0** when that
 - Return a generic 500 body on `/api/upload` stream errors (do not leak `err.message`)
 - Add Content-Security-Policy (strict `script-src` in production; Vite-compatible `unsafe-inline` / `unsafe-eval` in development)
 - Re-validate custom server probe URLs immediately before ping/download (`sanitizeServerForUse`)
+- Remove AbortSignal listeners after timed waits (`waitForTimeout`) so they do not leak across tests
 
 ## [0.1.3] - 2026-08-15
 
