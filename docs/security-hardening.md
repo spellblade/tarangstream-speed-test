@@ -101,6 +101,20 @@ npm test -- src/server/apiApp.test.ts
 
 Manual `/dev/tcp` hold-open snippets are optional and often flaky in Codespaces (`exec` can close the shell; the live server cap is **8**, so two held uploads will not 429 a third request). Use `npm test` as the source of truth.
 
+## Rate-limit map prune
+
+The in-memory limiter keeps timestamps per IP. When every timestamp for an IP is older than the 60-second window, that **IP key is deleted** so the map does not grow without bound (important if `TRUST_PROXY` is on and clients send many `X-Forwarded-For` values).
+
+### Verify
+
+No running server required:
+
+```bash
+npm test -- src/utils/rateLimit.test.ts
+```
+
+**Pass:** all cases succeed, including `drops the IP key after the sliding window is empty` (about **12** tests in that file).
+
 ## Later checks
 
-More procedures will be added here as further items land (CSP, map pruning, and so on).
+More procedures will be added here as further items land (CSP, abort listeners, generic upload errors, and so on).
