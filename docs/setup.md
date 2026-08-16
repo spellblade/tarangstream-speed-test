@@ -57,7 +57,7 @@ npm start
 | Build | `npm ci --include=dev && npm run build` |
 | Start | `npm start` |
 | Health check | `/api/health` |
-| Env | `NODE_ENV=production`, `TRUST_PROXY=true` |
+| Env | `NODE_VERSION=22`, `NODE_ENV=production`, `TRUST_PROXY=true` |
 
 Render sets `PORT`. Use a **Starter** instance (always-on). The Free plan sleeps when idle and will distort ping and throughput. Pick a region close to you (Singapore is usually closest from India).
 
