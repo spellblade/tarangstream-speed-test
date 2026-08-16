@@ -1,7 +1,7 @@
 {
   "name": "tarangstream-speed-test",
   "private": true,
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Browser-based network speed and stability diagnostics (download, upload, latency, jitter)",
   "type": "module",
   "scripts": {
@@ -14,7 +14,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@tailwindcss/vite": "^4.1.14",
+    "@tailwindcss/vite": "^4.3.3",
     "@vitejs/plugin-react": "^5.0.4",
     "dotenv": "^17.2.3",
     "express": "^4.21.2",
@@ -33,7 +33,7 @@
     "esbuild": "^0.25.0",
     "supertest": "^7.1.4",
     "tailwindcss": "^4.1.14",
-    "tsx": "^4.21.0",
+    "tsx": "^4.23.12",
     "typescript": "~5.8.2",
     "vite": "^6.2.3",
     "vitest": "^3.2.7"
