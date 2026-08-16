@@ -11,6 +11,7 @@ import {
   Zap,
   Globe,
 } from "lucide-react";
+import { version } from "../../package.json";
 
 interface AboutPageProps {
   onBack: () => void;
@@ -268,12 +269,13 @@ export default function AboutPage({ onBack }: AboutPageProps) {
             <span>About the Organization</span>
           </div>
           <p className="text-base text-slate-500 dark:text-slate-400 leading-relaxed">
-            Spellblade, Inc. is an independent internet performance
-            diagnostics developer dedicated to building high-fidelity measuring
-            systems, telemetry software, and distributed monitoring networks.
-            Our tools help network administrators, engineers, and everyday users
-            understand the true limits, routing overheads, and quality patterns
-            of their internet connections.
+            Spellblade Labs. Inc. and associated contact information are
+            fictional and used for demonstration purposes. It is an independent
+            internet performance diagnostics developer dedicated to building
+            high-fidelity measuring systems, telemetry software, and distributed 
+            monitoring networks. Our tools help network administrators, engineers,
+            and everyday users understand the true limits, routing overheads, 
+            and quality patterns of their internet connections.
           </p>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -282,9 +284,9 @@ export default function AboutPage({ onBack }: AboutPageProps) {
                 Headquarters
               </span>
               <p className="text-xs text-slate-600 dark:text-slate-350 leading-relaxed">
-                Spellblade Labs, Inc.
+                Spellblade Labs. Inc.
                 <br />
-                100 Science Park Drive, Suite 450
+                100 Demo Science Park Drive, Suite 450
                 <br />
                 San Francisco, CA 94107
               </p>
@@ -299,10 +301,10 @@ export default function AboutPage({ onBack }: AboutPageProps) {
                   Feedback & Discussion
                 </span>
                 <a
-                  href="mailto:contact@spellblade.com"
+                  href="mailto:sohamray24@outlook.com"
                   className="text-sm font-bold text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-350 hover:underline transition-all block truncate"
                 >
-                  contact@spellblade.com
+                  sohamray24@outlook.com
                 </a>
               </div>
             </div>
@@ -310,7 +312,7 @@ export default function AboutPage({ onBack }: AboutPageProps) {
         </div>
 
         <div className="text-center text-[10px] font-mono text-slate-400 dark:text-slate-500 pt-2 border-t border-slate-100 dark:border-slate-800/60">
-          TarangStream Engine v2.4.1 • © 2026
+          TarangStream v{version} • © 2026
         </div>
       </div>
     </div>

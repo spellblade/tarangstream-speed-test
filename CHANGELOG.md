@@ -14,6 +14,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - GitHub templates: issue templates, pull request template
 - Dependabot config (`.github/dependabot.yml`)
 - README project structure, badges, branch model, and quick start
+- Render Blueprint (`render.yaml`) for a Node web service named `tarangstream`
+- About page footer shows the app version from `package.json`
 
 ### Changed
 
