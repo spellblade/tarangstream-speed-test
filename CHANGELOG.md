@@ -19,11 +19,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+## [1.0.1] - 2026-08-16
+
+### Added
+
+### Changed
+
+- `@tailwindcss/vite` 4.3.2 → 4.3.3
+- `tsx` 4.23.0 → 4.23.12
+- GitHub Actions: `actions/checkout` v4 → v7, `actions/setup-node` v4 → v7, `github/codeql-action` v3 → v4, Semgrep action pin
+- Dependabot now opens update PRs against `develop` instead of `master`
+
+### Fixed
+
 ## [1.0.0] - 2026-08-16
 
 ### Added
 
 - First stable release of TarangStream: progress UX, security hardening, and `PORT` / dotenv configuration
+
+### Changed
+
+### Fixed
 
 ## [0.2.1] - 2026-08-16
 
@@ -119,8 +136,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Dark / light theme with instant theme toggle
 - Stability chart and About page (lazy-loaded)
 
-[Unreleased]: https://github.com/spellblade/tarangstream-speed-test/compare/v1.0.0...HEAD
-[1.0.0]: https://github.com/spellblade/tarangstream-speed-test/releases/tag/v1.0.0
+### Changed
+
+### Fixed
+
+[Unreleased]: https://github.com/spellblade/tarangstream-speed-test/compare/v1.0.1...HEAD
+[1.0.1]: https://github.com/spellblade/tarangstream-speed-test/releases/tag/v1.0.1
+[1.0.0]: https://github.com/spellblade/tarangstream-speed-test/compare/v1.0.0...v1.0.1
 [0.2.1]: https://github.com/spellblade/tarangstream-speed-test/compare/v0.2.1...v1.0.0
 [0.2.0]: https://github.com/spellblade/tarangstream-speed-test/compare/v0.2.0...v0.2.1
 [0.1.3]: https://github.com/spellblade/tarangstream-speed-test/compare/v0.1.3...v0.2.0
