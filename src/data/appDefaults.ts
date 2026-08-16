@@ -1,0 +1,138 @@
+import type { HistoryEntry, ServerOption } from "../types";
+
+/** Seed history so the stability graph starts with sample data. */
+export const BASE_HISTORY: HistoryEntry[] = [
+  {
+    id: "seed-1",
+    timestamp: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
+    download: 342.5,
+    upload: 182.1,
+    ping: 18,
+    jitter: 3,
+    isp: "Gigabit Fiber Corp",
+    server: "Optimal Automatic",
+  },
+  {
+    id: "seed-2",
+    timestamp: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+    download: 295.1,
+    upload: 154.2,
+    ping: 24,
+    jitter: 5,
+    isp: "Gigabit Fiber Corp",
+    server: "Optimal Automatic",
+  },
+  {
+    id: "seed-3",
+    timestamp: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
+    download: 388.9,
+    upload: 210.5,
+    ping: 16,
+    jitter: 2,
+    isp: "Gigabit Fiber Corp",
+    server: "Optimal Automatic",
+  },
+  {
+    id: "seed-4",
+    timestamp: new Date(Date.now() - 12 * 60 * 60 * 1000).toISOString(),
+    download: 412.0,
+    upload: 220.8,
+    ping: 15,
+    jitter: 2,
+    isp: "Gigabit Fiber Corp",
+    server: "Optimal Automatic",
+  },
+  {
+    id: "seed-5",
+    timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
+    download: 165.4,
+    upload: 82.0,
+    ping: 32,
+    jitter: 9,
+    isp: "Gigabit Fiber Corp",
+    server: "Optimal Automatic",
+  },
+];
+
+export const DEFAULT_SERVER_OPTIONS: ServerOption[] = [
+  {
+    id: "optimal",
+    name: "Automatic Optimal Node",
+    location: "Lowest Latency Route",
+  },
+  {
+    id: "oregon",
+    name: "Cloud Provider (US-West)",
+    location: "Oregon, USA",
+    lat: 45.8283,
+    lon: -120.3184,
+  },
+  {
+    id: "virginia",
+    name: "Cloud Provider (US-East)",
+    location: "Virginia, USA",
+    lat: 37.4316,
+    lon: -78.6569,
+  },
+  {
+    id: "frankfurt",
+    name: "High-Speed CDN Node",
+    location: "Frankfurt, GER",
+    lat: 50.1109,
+    lon: 8.6821,
+  },
+  {
+    id: "london",
+    name: "Core Gateway (UK-West)",
+    location: "London, GBR",
+    lat: 51.5074,
+    lon: -0.1278,
+  },
+  {
+    id: "singapore",
+    name: "Pacific Transit Point",
+    location: "Singapore, SGP",
+    lat: 1.3521,
+    lon: 103.8198,
+  },
+  {
+    id: "tokyo",
+    name: "Asia Pacific Edge",
+    location: "Tokyo, JPN",
+    lat: 35.6762,
+    lon: 139.6503,
+  },
+  {
+    id: "sydney",
+    name: "Oceania Backbone",
+    location: "Sydney, AUS",
+    lat: -33.8688,
+    lon: 151.2093,
+  },
+  {
+    id: "saopaulo",
+    name: "South America Hub",
+    location: "São Paulo, BRA",
+    lat: -23.5505,
+    lon: -46.6333,
+  },
+  {
+    id: "mumbai",
+    name: "South Asia Core",
+    location: "Mumbai, IND",
+    lat: 19.076,
+    lon: 72.8777,
+  },
+];
+
+export const POPULAR_CITIES = [
+  { name: "New York, USA", lat: 40.7128, lon: -74.006 },
+  { name: "Los Angeles, USA", lat: 34.0522, lon: -118.2437 },
+  { name: "London, UK", lat: 51.5074, lon: -0.1278 },
+  { name: "Paris, France", lat: 48.8566, lon: 2.3522 },
+  { name: "Tokyo, Japan", lat: 35.6762, lon: 139.6503 },
+  { name: "Sydney, Australia", lat: -33.8688, lon: 151.2093 },
+  { name: "Mumbai, India", lat: 19.076, lon: 72.8777 },
+  { name: "Singapore", lat: 1.3521, lon: 103.8198 },
+  { name: "Cape Town, S. Africa", lat: -33.9249, lon: 18.4241 },
+] as const;
