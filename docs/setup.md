@@ -47,6 +47,26 @@ npm start
 - Server is bundled to `dist/server.cjs`.
 - When `NODE_ENV=production`, Express serves static files from `dist/` and falls back to `index.html` for SPA routes.
 
+### Render
+
+[render.yaml](../render.yaml) defines a Node web service named **tarangstream**. Create it once in the Render dashboard (**New** → **Blueprint**, or a Web Service pointed at this repo).
+
+| Setting | Value |
+|---------|--------|
+| Branch | `master` (promote from `develop` first) |
+| Build | `npm ci --include=dev && npm run build` |
+| Start | `npm start` |
+| Health check | `/api/health` |
+| Env | `NODE_VERSION=22`, `NODE_ENV=production`, `TRUST_PROXY=true` |
+
+Render sets `PORT`. Use a **Starter** instance (always-on). The Free plan sleeps when idle and will distort ping and throughput. Pick a region close to you (Singapore is usually closest from India).
+
+After the first deploy:
+
+1. `curl -sS https://<service>.onrender.com/api/health` should return `{"status":"ok",...}`.
+2. Open the site and run one full test. The badge should be **live**, not `local-mirror` or `simulated`.
+3. About footer should show the current app version (for example `TarangStream v1.0.1`).
+
 ## Environment variables
 
 Copy [`.env.example`](../.env.example) if you maintain a local `.env` (gitignored).
