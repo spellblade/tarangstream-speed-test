@@ -1175,7 +1175,7 @@ export default function App() {
                 TarangStream
               </h1>
               <span className="text-[8px] font-mono text-slate-400 dark:text-slate-500 uppercase tracking-widest font-bold block -mt-0.5">
-                Network Telemetry Diagnostics
+                Internet speed test
               </span>
             </div>
           </div>
