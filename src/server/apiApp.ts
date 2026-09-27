@@ -101,8 +101,10 @@ export function createApiApp(options: ApiAppOptions = {}): Express {
     );
 
   const app = express();
-  app.use((_req: Request, res: Response, next: NextFunction) => {
-    res.set("Cache-Control", "no-store, no-cache, must-revalidate, private");
+  app.use((req: Request, res: Response, next: NextFunction) => {
+    if (req.path.startsWith("/api/")) {
+      res.set("Cache-Control", "no-store, no-cache, must-revalidate, private");
+    }
     res.set("X-Content-Type-Options", "nosniff");
     res.set("X-Frame-Options", "DENY");
     res.set("Referrer-Policy", "strict-origin-when-cross-origin");
