@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- CI records a Production deployment on `master` for the live Render site
 - Project documentation under `docs/` (setup, architecture, usage, coding standards, measurement methodology)
 - Project metadata and contributor scaffolding: `VERSION`, MIT `LICENSE`, `CONTRIBUTING.md`, `SECURITY.md`, `.editorconfig`
 - GitHub templates: issue templates, pull request template
@@ -20,6 +21,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 ### Fixed
+
+- ISP lookup aborts a geo-IP provider that does not respond within 3 seconds and tries the next provider
 
 ## [1.0.1] - 2026-08-16
 

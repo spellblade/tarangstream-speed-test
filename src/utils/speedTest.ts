@@ -154,18 +154,56 @@ export async function measurePing(
   };
 }
 
+/** A geo-IP provider that does not answer within this window is abandoned. */
+export const ISP_LOOKUP_TIMEOUT_MS = 3000;
+
 /**
- * Retreives detailed ISP, organization, public IP, and country information
- * using public secure geo-endpoints. Handles CORS/network limits with fallbacks.
+ * `fetch` ignores a `timeout` field. Abort the request when the deadline passes.
  */
-export async function fetchIspDetails(): Promise<IspInfo> {
+export async function fetchWithTimeout(
+  url: string,
+  timeoutMs: number = ISP_LOOKUP_TIMEOUT_MS,
+): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    const response = await fetch("https://ipapi.co/json/", {
-      timeout: 3000,
-    } as any);
-    if (!response.ok) throw new Error("Primary service failed");
-    const data = await response.json();
-    return {
+    return await fetch(url, { signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+interface IspProviderPayload {
+  ip?: string;
+  org?: string;
+  city?: string;
+  region?: string;
+  country?: string;
+  country_name?: string;
+  country_code?: string;
+  countryCode?: string;
+  latitude?: number;
+  longitude?: number;
+  asn?: string;
+  loc?: string;
+  ipAddress?: string;
+  cityName?: string;
+  regionName?: string;
+  countryName?: string;
+  connection?: { isp?: string; asn?: string | number };
+}
+
+interface IspProvider {
+  url: string;
+  failedMessage: string;
+  map: (data: IspProviderPayload) => IspInfo;
+}
+
+const ISP_PROVIDERS: IspProvider[] = [
+  {
+    url: "https://ipapi.co/json/",
+    failedMessage: "Primary ISP info fetch failed, trying secondary fallback...",
+    map: (data) => ({
       ip: data.ip || "198.51.100.42",
       isp: data.org || "Gigabit Fiber Corp",
       city: data.city || "Seattle",
@@ -175,19 +213,13 @@ export async function fetchIspDetails(): Promise<IspInfo> {
       lon: data.longitude || -122.3321,
       asn: data.asn || "AS4123",
       countryCode: data.country || "US",
-    };
-  } catch (err) {
-    console.warn(
-      "Primary ISP info fetch failed, trying secondary fallback...",
-      err,
-    );
-    try {
-      const response = await fetch("https://ipinfo.io/json");
-      if (!response.ok) throw new Error("Secondary service failed");
-      const data = await response.json();
-      const [lat, lon] = (data.loc || "47.6062,-122.3321")
-        .split(",")
-        .map(Number);
+    }),
+  },
+  {
+    url: "https://ipinfo.io/json",
+    failedMessage: "Secondary ISP info fetch failed, trying third fallback...",
+    map: (data) => {
+      const [lat, lon] = (data.loc || "47.6062,-122.3321").split(",").map(Number);
       return {
         ip: data.ip || "198.51.100.42",
         isp: data.org || "Broadband Access",
@@ -198,178 +230,181 @@ export async function fetchIspDetails(): Promise<IspInfo> {
         lon: lon || -122.3321,
         countryCode: data.country || "US",
       };
-    } catch (err2) {
-      console.warn(
-        "Secondary ISP info fetch failed, trying third fallback...",
-        err2,
-      );
-      try {
-        const response = await fetch("https://freeipapi.com/api/json");
-        if (!response.ok) throw new Error("Third service failed");
-        const data = await response.json();
-        return {
-          ip: data.ipAddress || "198.51.100.42",
-          isp: "Local Fiber Alliance",
-          city: data.cityName || "Seattle",
-          region: data.regionName || "Washington",
-          country: data.countryName || "United States",
-          lat: data.latitude || 47.6062,
-          lon: data.longitude || -122.3321,
-          countryCode: data.countryCode || "US",
-        };
-      } catch (err3) {
-        console.warn(
-          "Third ISP info fetch failed, trying fourth fallback...",
-          err3,
-        );
-        try {
-          const response = await fetch("https://ipwho.is/");
-          if (!response.ok) throw new Error("Fourth service failed");
-          const data = await response.json();
-          return {
-            ip: data.ip || "198.51.100.42",
-            isp: data.connection?.isp || "Broadband Link",
-            city: data.city || "Seattle",
-            region: data.region || "Washington",
-            country: data.country || "United States",
-            lat: data.latitude || 47.6062,
-            lon: data.longitude || -122.3321,
-            asn: data.connection?.asn ? `AS${data.connection.asn}` : "AS1332",
-            countryCode: data.country_code || "US",
-          };
-        } catch {
-          // Secure local fallback guessed via client runtime values
-          const tz =
-            Intl.DateTimeFormat().resolvedOptions().timeZone || "Asia/Kolkata";
-          const parts = tz.split("/");
-          const zoneCity = parts[parts.length - 1]
-            ? parts[parts.length - 1].replace(/_/g, " ")
-            : "Kolkata";
+    },
+  },
+  {
+    url: "https://freeipapi.com/api/json",
+    failedMessage: "Third ISP info fetch failed, trying fourth fallback...",
+    map: (data) => ({
+      ip: data.ipAddress || "198.51.100.42",
+      isp: "Local Fiber Alliance",
+      city: data.cityName || "Seattle",
+      region: data.regionName || "Washington",
+      country: data.countryName || "United States",
+      lat: data.latitude || 47.6062,
+      lon: data.longitude || -122.3321,
+      countryCode: data.countryCode || "US",
+    }),
+  },
+  {
+    url: "https://ipwho.is/",
+    failedMessage: "Fourth ISP info fetch failed, using timezone fallback...",
+    map: (data) => ({
+      ip: data.ip || "198.51.100.42",
+      isp: data.connection?.isp || "Broadband Link",
+      city: data.city || "Seattle",
+      region: data.region || "Washington",
+      country: data.country || "United States",
+      lat: data.latitude || 47.6062,
+      lon: data.longitude || -122.3321,
+      asn: data.connection?.asn ? `AS${data.connection.asn}` : "AS1332",
+      countryCode: data.country_code || "US",
+    }),
+  },
+];
 
-          let city = zoneCity;
-          let region = "West Bengal";
-          let country = "India";
-          let lat = 22.5726;
-          let lon = 88.3639;
-          let countryCode = "IN";
-          let isp = "Alliance Broadband / BSNL";
+/** Guess a location from the browser timezone when every geo-IP provider fails. */
+function ispFromTimezone(): IspInfo {
+  const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || "Asia/Kolkata";
+  const parts = tz.split("/");
+  const zoneCity = parts[parts.length - 1]
+    ? parts[parts.length - 1].replace(/_/g, " ")
+    : "Kolkata";
 
-          const lowerTz = tz.toLowerCase();
-          if (lowerTz.includes("kolkata") || lowerTz.includes("calcutta")) {
-            city = "Kolkata";
-            region = "West Bengal";
-            country = "India";
-            lat = 22.5726;
-            lon = 88.3639;
-            countryCode = "IN";
-            isp = "Alliance Broadband";
-          } else if (lowerTz.includes("london")) {
-            city = "London";
-            region = "England";
-            country = "United Kingdom";
-            lat = 51.5074;
-            lon = -0.1278;
-            countryCode = "GB";
-            isp = "BT Broadband";
-          } else if (lowerTz.includes("singapore")) {
-            city = "Singapore";
-            region = "Central";
-            country = "Singapore";
-            lat = 1.3521;
-            lon = 103.8198;
-            countryCode = "SG";
-            isp = "Singtel Fiber";
-          } else if (lowerTz.includes("tokyo")) {
-            city = "Tokyo";
-            region = "Tokyo";
-            country = "Japan";
-            lat = 35.6762;
-            lon = 139.6503;
-            countryCode = "JP";
-            isp = "NTT Docomo";
-          } else if (lowerTz.includes("sydney")) {
-            city = "Sydney";
-            region = "New South Wales";
-            country = "Australia";
-            lat = -33.8688;
-            lon = 151.2093;
-            countryCode = "AU";
-            isp = "Telstra";
-          } else if (
-            lowerTz.includes("new_york") ||
-            lowerTz.includes("new york")
-          ) {
-            city = "New York";
-            region = "New York";
-            country = "United States";
-            lat = 40.7128;
-            lon = -74.006;
-            countryCode = "US";
-            isp = "Verizon Fios";
-          } else if (lowerTz.includes("paris")) {
-            city = "Paris";
-            region = "Île-de-France";
-            country = "France";
-            lat = 48.8566;
-            lon = 2.3522;
-            countryCode = "FR";
-            isp = "Orange France";
-          } else if (
-            lowerTz.includes("berlin") ||
-            lowerTz.includes("frankfurt")
-          ) {
-            city = "Frankfurt";
-            region = "Hesse";
-            country = "Germany";
-            lat = 50.1109;
-            lon = 8.6821;
-            countryCode = "DE";
-            isp = "Deutsche Telekom";
-          } else {
-            const continent = parts[0] || "Asia";
-            if (continent.toLowerCase() === "america") {
-              city = zoneCity || "San Francisco";
-              region = "California";
-              country = "United States";
-              lat = 37.7749;
-              lon = -122.4194;
-              countryCode = "US";
-              isp = "Comcast Xfinity";
-            } else if (continent.toLowerCase() === "europe") {
-              city = zoneCity || "Frankfurt";
-              region = "Hesse";
-              country = "Germany";
-              lat = 50.1109;
-              lon = 8.6821;
-              countryCode = "DE";
-              isp = "Deutsche Telekom";
-            } else {
-              city = "Kolkata";
-              region = "West Bengal";
-              country = "India";
-              lat = 22.5726;
-              lon = 88.3639;
-              countryCode = "IN";
-              isp = "Alliance Broadband";
-            }
-          }
+  let city = zoneCity;
+  let region = "West Bengal";
+  let country = "India";
+  let lat = 22.5726;
+  let lon = 88.3639;
+  let countryCode = "IN";
+  let isp = "Alliance Broadband / BSNL";
 
-          return {
-            ip: "192.168.1.185",
-            isp: isp,
-            city: city,
-            region: region,
-            country: country,
-            lat: lat,
-            lon: lon,
-            asn: "AS7922",
-            countryCode: countryCode,
-            isFallback: true,
-          };
-        }
-      }
+  const lowerTz = tz.toLowerCase();
+  if (lowerTz.includes("kolkata") || lowerTz.includes("calcutta")) {
+    city = "Kolkata";
+    region = "West Bengal";
+    country = "India";
+    lat = 22.5726;
+    lon = 88.3639;
+    countryCode = "IN";
+    isp = "Alliance Broadband";
+  } else if (lowerTz.includes("london")) {
+    city = "London";
+    region = "England";
+    country = "United Kingdom";
+    lat = 51.5074;
+    lon = -0.1278;
+    countryCode = "GB";
+    isp = "BT Broadband";
+  } else if (lowerTz.includes("singapore")) {
+    city = "Singapore";
+    region = "Central";
+    country = "Singapore";
+    lat = 1.3521;
+    lon = 103.8198;
+    countryCode = "SG";
+    isp = "Singtel Fiber";
+  } else if (lowerTz.includes("tokyo")) {
+    city = "Tokyo";
+    region = "Tokyo";
+    country = "Japan";
+    lat = 35.6762;
+    lon = 139.6503;
+    countryCode = "JP";
+    isp = "NTT Docomo";
+  } else if (lowerTz.includes("sydney")) {
+    city = "Sydney";
+    region = "New South Wales";
+    country = "Australia";
+    lat = -33.8688;
+    lon = 151.2093;
+    countryCode = "AU";
+    isp = "Telstra";
+  } else if (lowerTz.includes("new_york") || lowerTz.includes("new york")) {
+    city = "New York";
+    region = "New York";
+    country = "United States";
+    lat = 40.7128;
+    lon = -74.006;
+    countryCode = "US";
+    isp = "Verizon Fios";
+  } else if (lowerTz.includes("paris")) {
+    city = "Paris";
+    region = "Île-de-France";
+    country = "France";
+    lat = 48.8566;
+    lon = 2.3522;
+    countryCode = "FR";
+    isp = "Orange France";
+  } else if (lowerTz.includes("berlin") || lowerTz.includes("frankfurt")) {
+    city = "Frankfurt";
+    region = "Hesse";
+    country = "Germany";
+    lat = 50.1109;
+    lon = 8.6821;
+    countryCode = "DE";
+    isp = "Deutsche Telekom";
+  } else {
+    const continent = parts[0] || "Asia";
+    if (continent.toLowerCase() === "america") {
+      city = zoneCity || "San Francisco";
+      region = "California";
+      country = "United States";
+      lat = 37.7749;
+      lon = -122.4194;
+      countryCode = "US";
+      isp = "Comcast Xfinity";
+    } else if (continent.toLowerCase() === "europe") {
+      city = zoneCity || "Frankfurt";
+      region = "Hesse";
+      country = "Germany";
+      lat = 50.1109;
+      lon = 8.6821;
+      countryCode = "DE";
+      isp = "Deutsche Telekom";
+    } else {
+      city = "Kolkata";
+      region = "West Bengal";
+      country = "India";
+      lat = 22.5726;
+      lon = 88.3639;
+      countryCode = "IN";
+      isp = "Alliance Broadband";
     }
   }
+
+  return {
+    ip: "192.168.1.185",
+    isp,
+    city,
+    region,
+    country,
+    lat,
+    lon,
+    asn: "AS7922",
+    countryCode,
+    isFallback: true,
+  };
+}
+
+/**
+ * Retrieves ISP, public IP, and country from public geo-IP endpoints.
+ * A hung provider is aborted so the next one can run.
+ */
+export async function fetchIspDetails(
+  timeoutMs: number = ISP_LOOKUP_TIMEOUT_MS,
+): Promise<IspInfo> {
+  for (const provider of ISP_PROVIDERS) {
+    try {
+      const response = await fetchWithTimeout(provider.url, timeoutMs);
+      if (!response.ok) throw new Error("ISP provider failed");
+      const data = await response.json();
+      return provider.map(data);
+    } catch (err) {
+      console.warn(provider.failedMessage, err);
+    }
+  }
+  return ispFromTimezone();
 }
 
 /**
