@@ -70,10 +70,16 @@ describe("createApiApp routes", () => {
     });
   }
 
+  it("does not mark non-API responses as uncacheable", async () => {
+    const res = await request(app()).get("/");
+    expect(res.headers["cache-control"]).toBeUndefined();
+  });
+
   it("GET /api/health returns ok and security headers", async () => {
     const res = await request(app()).get("/api/health").expect(200);
     expect(res.body.status).toBe("ok");
     expect(typeof res.body.time).toBe("string");
+    expect(res.headers["cache-control"]).toMatch(/no-store/);
     expect(res.headers["x-content-type-options"]).toBe("nosniff");
     expect(res.headers["x-frame-options"]).toBe("DENY");
     expect(res.headers["content-security-policy"]).toBe(
