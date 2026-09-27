@@ -6,6 +6,9 @@ on:
   pull_request:
     branches: [master, develop, staging]
 
+permissions:
+  contents: read
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -30,3 +33,20 @@ jobs:
 
       - name: Build
         run: npm run build
+
+  # Render's production deploy does not create a GitHub Deployment, so the
+  # repository sidebar stays empty. After CI succeeds on master, record the
+  # existing https://tarangstream.onrender.com service as Production.
+  record-production:
+    needs: build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      deployments: write
+    environment:
+      name: Production
+      url: https://tarangstream.onrender.com
+    steps:
+      - name: Record production URL
+        run: echo "Production is https://tarangstream.onrender.com (${{ github.sha }})"
