@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Search listing metadata, robots.txt, and a sitemap for the public site
 - CI records a Production deployment on `master` for the live Render site
 - Project documentation under `docs/` (setup, architecture, usage, coding standards, measurement methodology)
 - Project metadata and contributor scaffolding: `VERSION`, MIT `LICENSE`, `CONTRIBUTING.md`, `SECURITY.md`, `.editorconfig`
