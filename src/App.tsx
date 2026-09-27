@@ -441,9 +441,12 @@ export default function App() {
     // ISP Geolookup on startup
     const locate = async () => {
       setIsIspLoading(true);
-      const info = await fetchIspDetails();
-      setIspInfo(info);
-      setIsIspLoading(false);
+      try {
+        const info = await fetchIspDetails();
+        setIspInfo(info);
+      } finally {
+        setIsIspLoading(false);
+      }
     };
     locate();
 
